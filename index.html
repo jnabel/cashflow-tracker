@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cash Flow & Obligations Tracker | Allied Home Capital</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;background:#f8f9fa}
+.app{max-width:1100px;margin:0 auto;padding:16px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.hdr-title{font-size:18px;font-weight:600}
+.hdr-sub{font-size:12px;color:#666;margin-top:2px}
+.hdr-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;background:#f1f3f5;padding:4px;border-radius:10px;margin-bottom:16px;overflow-x:auto}
+.tab{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:500;border:none;background:transparent;color:#555;cursor:pointer;white-space:nowrap}
+.tab.on{background:#fff;color:#1a1a1a;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.card{background:#fff;border:1px solid #e8e9eb;border-radius:12px;padding:16px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px 6px 0;border-bottom:1px solid #eee}
+td{padding:9px 8px 9px 0;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+input,select{font-family:inherit;font-size:13px;color:#1a1a1a;background:#fff;border:1px solid #d0d0d0;border-radius:7px;padding:6px 10px;width:100%;outline:none}
+input:focus,select:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+button{font-family:inherit;font-size:13px;cursor:pointer;border-radius:8px;border:1px solid #d0d0d0;background:#fff;color:#1a1a1a;padding:6px 12px}
+button:hover{background:#f5f5f5}
+.bdk{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.bdk:hover{background:#333;color:#fff}
+.bgn{background:#059669;color:#fff;border-color:#059669}
+.bgn:hover{background:#047857;color:#fff}
+.brd{background:#dc2626;color:#fff;border-color:#dc2626}
+.brd:hover{background:#b91c1c;color:#fff}
+.bsm{padding:4px 10px;font-size:12px}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.pg{background:#d1fae5;color:#065f46}
+.pa{background:#fef3c7;color:#92400e}
+.pb{background:#dbeafe;color:#1e40af}
+.pr{background:#fee2e2;color:#991b1b}
+.pp{background:#ede9fe;color:#5b21b6}
+.po{background:#ffedd5;color:#9a3412}
+.ps{background:#f3f4f6;color:#4b5563}
+.chip{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px}
+.nrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.met{background:#f8f9fa;border-radius:8px;padding:12px 14px}
+.mlb{font-size:11px;color:#888;margin-bottom:4px}
+.mvl{font-size:20px;font-weight:600}
+.alrt{border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:13px;border:1px solid}
+.ard{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+.psub{background:#f8f9fa;padding:12px 16px}
+.sfrm{background:#fff;border:1px solid #e8e9eb;border-radius:8px;padding:12px;margin-top:8px}
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.frow>*{flex:1;min-width:110px}
+.lbl{font-size:11px;color:#888;display:block;margin-bottom:3px}
+.ckr{display:flex;align-items:center;gap:7px;font-size:13px;margin:6px 0;cursor:pointer}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}
+.bbg{height:5px;background:#e5e7eb;border-radius:3px;margin-top:4px;overflow:hidden}
+.bfg{height:100%;background:#6366f1;border-radius:3px}
+.emp{text-align:center;color:#aaa;padding:28px;font-size:13px}
+tfoot td{font-weight:600;border-top:1px solid #ddd;border-bottom:none;padding-top:10px}
+.wov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999}
+.wmd{background:#fff;border-radius:14px;padding:22px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.clog{max-height:160px;overflow-y:auto;margin-top:8px}
+.clr{font-size:12px;color:#666;padding:3px 0;border-bottom:1px solid #f0f0f0}
+.fcd{border:1px solid #a7f3d0;background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:10px}
+.acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.badge-new{background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="app"><div id="root"></div></div>
+<script>
+const SK="cft-v5";
+const PC=["LO Commission","Referral","Processor Fee","Lead Owner","Override","Other"];
+const OR=new Set(["lo1","lo2","lo3","lo4","lo5","lo6","lo7"]);
+
+const fmt=n=>Number(n).toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtK=n=>{const v=Number(n);return Math.abs(v)>=1000?`${v<0?"-":""}$${(Math.abs(v)/1000).toFixed(1)}k`:fmt(v)};
+const fmtD=s=>{if(!s)return"—";const d=new Date(s+"T00:00:00");return isNaN(d)?"—":d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})};
+const fmtS=s=>{if(!s)return"";const d=new Date(s+"T00:00:00");return isNaN(d)?"":d.toLocaleDateString("en-US",{month:"short",day:"numeric"})};
+const td=()=>new Date().toISOString().slice(0,10);
+const du=s=>{if(!s)return 9999;const t=new Date();t.setHours(0,0,0,0);return Math.round((new Date(s+"T00:00:00")-t)/86400000)};
+const ai=(d,c)=>{const x=new Date(d+"T00:00:00");c==="weekly"?x.setDate(x.getDate()+7):x.setMonth(x.getMonth()+1);return x.toISOString().slice(0,10)};
+const gid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const dc=s=>{const d=du(s);let c="ps",l=`In ${d}d`;if(d<0){c="pr";l=`${Math.abs(d)}d overdue`}else if(d===0){c="pr";l="Due today"}else if(d<=3)c="po";else if(d<=7)c="pa";return`<span class="chip ${c}">${l}</span>`};
+const cb=c=>{const m={"LO Commission":"pp","Referral":"pb","Processor Fee":"ps","Lead Owner":"po","Override":"pr","Other":"ps"};return`<span class="pill ${m[c]||"ps"}">${c||"—"}</span>`};
+
+const SEED={
+  lo:[
+    {id:"lo1",loanOfficer:"AKIB",fileName:"S Ahmed",amount:18787.5,dueDate:"2026-06-24",status:"paid",paidDate:"2026-06-23",category:"LO Commission",payee:"AKIB",linkedRevId:null},
+    {id:"lo2",loanOfficer:"AKIB",fileName:"Rezu",amount:14250,dueDate:"2026-06-24",status:"paid",paidDate:"2026-06-23",category:"LO Commission",payee:"AKIB",linkedRevId:null},
+    {id:"lo3",loanOfficer:"AKIB",fileName:"R Ahmed",amount:18650,dueDate:"2026-06-24",status:"paid",paidDate:"2026-06-23",category:"LO Commission",payee:"AKIB",linkedRevId:null},
+    {id:"lo4",loanOfficer:"AKIB",fileName:"Cutz Pech",amount:15854,dueDate:"2026-07-02",status:"pending",paidDate:null,category:"LO Commission",payee:"AKIB",linkedRevId:null},
+    {id:"lo5",loanOfficer:"AKIB",fileName:"MD Rahman",amount:15900,dueDate:"2026-07-04",status:"pending",paidDate:null,category:"LO Commission",payee:"AKIB",linkedRevId:null},
+    {id:"lo7",loanOfficer:"AKIB",fileName:"Jahan",amount:16065,dueDate:"2026-07-17",status:"pending",paidDate:null,category:"LO Commission",payee:"AKIB",linkedRevId:null},
+    {id:"lo8",loanOfficer:"Kristina",fileName:"Yax",amount:15885.14,dueDate:"2026-07-03",status:"pending",paidDate:null,category:"LO Commission",payee:"Kristina",linkedRevId:"rev3"},
+    {id:"mr28f9jbjioze",loanOfficer:"Emily",fileName:"Danillo",amount:2519,dueDate:"2026-07-09",status:"pending",paidDate:null,linkedRevId:"rev4",linkedPayoutId:"mr28f9jbuop0l",category:"LO Commission",payee:"Emily"},
+    {id:"mr28oz964ryj8",loanOfficer:"Akib",fileName:"Aryal",amount:20273,dueDate:"2026-07-27",status:"pending",paidDate:null,linkedRevId:"mr28m5j2qy2u4",linkedPayoutId:"mr28oz96omqgy",category:"LO Commission",payee:"Akib"},
+    {id:"mr2947lkp6cds",loanOfficer:"Akib",fileName:"Azimur Rahman",amount:20273,dueDate:"2026-08-03",status:"pending",paidDate:null,linkedRevId:"mr29227411ubw",linkedPayoutId:"mr2947lkhyn9x",category:"LO Commission",payee:"Akib"},
+    {id:"mr29d5j5g9s3t",loanOfficer:"Akib",fileName:"Azimur Rahman",amount:16800.62,dueDate:"2026-08-06",status:"pending",paidDate:null,linkedRevId:"mr29cfg8izz6q",linkedPayoutId:"mr29d5j595fvl",category:"LO Commission",payee:"Akib"},
+    {id:"mr29i4jox09dx",loanOfficer:"Akib",fileName:"Islam",amount:14470,dueDate:"2026-08-06",status:"pending",paidDate:null,linkedRevId:"mr29hj4kyz6m3",linkedPayoutId:"mr29i4joxbdye",category:"LO Commission",payee:"Akib"},
+    {id:"mr2a8cwe3ftpl",loanOfficer:"Akib",fileName:"Momin",amount:13249,dueDate:"2026-07-10",status:"pending",paidDate:null,linkedRevId:"mr2a7rlceazwp",linkedPayoutId:"mr2a8cwejw85y",category:"LO Commission",payee:"Akib"},
+  ],
+  exp:[
+    {id:"exp1",name:"Chris",category:"recurring",amount:2600,dueDate:"2026-06-22",cadence:"monthly",status:"paid",paidDate:"2026-06-22"},
+    {id:"exp1b",name:"Chris",category:"recurring",amount:2600,dueDate:"2026-07-22",cadence:"monthly",status:"pending",paidDate:null},
+    {id:"exp2",name:"Payroll",category:"payroll",amount:3500,dueDate:"2026-06-26",cadence:"weekly",status:"pending",paidDate:null},
+    {id:"exp3",name:"Property Radar",category:"recurring",amount:400,dueDate:"2026-06-29",cadence:"monthly",status:"pending",paidDate:null},
+    {id:"exp4",name:"Arive",category:"recurring",amount:565,dueDate:"2026-06-29",cadence:"monthly",status:"pending",paidDate:null},
+    {id:"exp5",name:"Go High Level",category:"recurring",amount:110,dueDate:"2026-07-01",cadence:"monthly",status:"pending",paidDate:null},
+    {id:"exp6",name:"Strategic Compliance",category:"recurring",amount:199,dueDate:"2026-07-02",cadence:"monthly",status:"pending",paidDate:null},
+    {id:"exp7",name:"Rent",category:"recurring",amount:3300,dueDate:"2026-07-05",cadence:"monthly",status:"pending",paidDate:null},
+  ],
+  rev:[
+    {id:"rev1",source:"Weinstien",amount:8690,type:"expected",date:"2026-07-22",wireReceived:false,receivedDate:null,payouts:[{id:"p1a",payee:"Alyssa",category:"Processor Fee",amount:695,dueDate:"2026-07-22",status:"pending",paidDate:null,linkedLoId:null}]},
+    {id:"rev2",source:"John Oliver",amount:87000,type:"confirmed",date:"2026-06-22",wireReceived:true,receivedDate:"2026-06-23",payouts:[{id:"p2a",payee:"Alyssa",category:"Processor Fee",amount:2000,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null},{id:"p2b",payee:"Keith",category:"Referral",amount:8000,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null},{id:"p2c",payee:"Nick",category:"Lead Owner",amount:15000,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null},{id:"p2d",payee:"Jake",category:"Override",amount:2500,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null}]},
+    {id:"rev3",source:"Yax",amount:17935.14,type:"confirmed",date:"2026-06-22",wireReceived:true,receivedDate:"2026-06-22",payouts:[{id:"p3a",payee:"Kristina",category:"LO Commission",amount:15885.14,dueDate:"2026-07-03",status:"pending",paidDate:null,linkedLoId:"lo8"}]},
+    {id:"rev4",source:"Danillo",amount:4580,type:"confirmed",date:"2026-06-30",wireReceived:true,receivedDate:"2026-06-30",payouts:[{id:"mr28f9jbuop0l",payee:"Emily",category:"LO Commission",amount:2519,dueDate:"2026-07-09",status:"pending",paidDate:null,linkedLoId:"mr28f9jbjioze"}]},
+    {id:"rev5",source:"Rafael Bermudez",amount:30000,type:"expected",date:"2026-07-29",wireReceived:false,receivedDate:null,payouts:[{id:"p5a",payee:"Alyssa",category:"Processor Fee",amount:2000,dueDate:"2026-07-29",status:"pending",paidDate:null,linkedLoId:null},{id:"p5b",payee:"Maya",category:"Lead Owner",amount:5600,dueDate:"2026-07-29",status:"pending",paidDate:null,linkedLoId:null}]},
+    {id:"rev6",source:"Dupont",amount:4000,type:"expected",date:"2026-06-25",wireReceived:true,receivedDate:"2026-06-25",payouts:[{id:"p6a",payee:"Alyssa",category:"Processor Fee",amount:695,dueDate:"2026-06-25",status:"pending",paidDate:null,linkedLoId:null},{id:"p6b",payee:"Randy",category:"LO Commission",amount:2700,dueDate:"2026-06-26",status:"paid",paidDate:"2026-07-01",linkedLoId:null}]},
+    {id:"rev7",source:"Rabman",amount:7000,type:"expected",date:"2026-07-09",wireReceived:false,receivedDate:null,payouts:[]},
+    {id:"rev8",source:"Robertson",amount:50000,type:"expected",date:"2026-07-24",wireReceived:false,receivedDate:null,payouts:[{id:"p8a",payee:"Alyssa",category:"Processor Fee",amount:2000,dueDate:"2026-07-24",status:"pending",paidDate:null,linkedLoId:null},{id:"p8b",payee:"Brandon",category:"Lead Owner",amount:9600,dueDate:"2026-07-24",status:"pending",paidDate:null,linkedLoId:null},{id:"p8c",payee:"Jake",category:"Override",amount:1500,dueDate:"2026-07-24",status:"pending",paidDate:null,linkedLoId:null}]},
+    {id:"rev9",source:"Sheila Sullivan",amount:20000,type:"expected",date:"2026-07-29",wireReceived:false,receivedDate:null,payouts:[{id:"p9a",payee:"Angelo",category:"Lead Owner",amount:3600,dueDate:"2026-07-29",status:"pending",paidDate:null,linkedLoId:null},{id:"p9b",payee:"Alyssa",category:"Processor Fee",amount:2000,dueDate:"2026-07-29",status:"pending",paidDate:null,linkedLoId:null},{id:"p9c",payee:"Jake",category:"Override",amount:750,dueDate:"2026-07-24",status:"pending",paidDate:null,linkedLoId:null}]},
+    {id:"mr28m5j2qy2u4",source:"Aryal",amount:22473,type:"confirmed",date:"2026-06-26",wireReceived:true,receivedDate:"2026-06-26",payouts:[{id:"mr28oz96omqgy",payee:"Akib",category:"LO Commission",amount:20273,dueDate:"2026-07-27",status:"pending",paidDate:null,linkedLoId:"mr28oz964ryj8"}]},
+    {id:"mr29cfg8izz6q",source:"Azimur Rahman",amount:19000.62,type:"confirmed",date:"2026-07-01",wireReceived:true,receivedDate:"2026-07-01",payouts:[{id:"mr29d5j595fvl",payee:"Akib",category:"LO Commission",amount:16800.62,dueDate:"2026-08-06",status:"pending",paidDate:null,linkedLoId:"mr29d5j5g9s3t"}]},
+    {id:"mr29hj4kyz6m3",source:"Islam",amount:16670,type:"confirmed",date:"2026-07-01",wireReceived:true,receivedDate:"2026-07-01",payouts:[{id:"mr29i4joxbdye",payee:"Akib",category:"LO Commission",amount:14470,dueDate:"2026-08-06",status:"pending",paidDate:null,linkedLoId:"mr29i4jox09dx"}]},
+    {id:"mr2a7rlceazwp",source:"Momin",amount:15449,type:"expected",date:"2026-06-10",wireReceived:false,receivedDate:null,payouts:[{id:"mr2a8cwejw85y",payee:"Akib",category:"LO Commission",amount:13249,dueDate:"2026-07-10",status:"pending",paidDate:null,linkedLoId:"mr2a8cwe3ftpl"}]},
+  ],
+  cash:83777.29,
+  cashLog:[
+    {id:"mr29siu2ist1g",date:"2026-07-01T16:08:32.858Z",prev:168973.91,next:83777.29},
+    {id:"mr29i9ddpuhch",date:"2026-07-01T16:00:34.033Z",prev:152303.91,next:168973.91,note:"Wire received"},
+    {id:"mr29diwizgq2d",date:"2026-07-01T15:56:53.106Z",prev:133303.29,next:152303.91,note:"Wire received"},
+    {id:"mr294j6oiuo7r",date:"2026-07-01T15:49:53.568Z",prev:110830.29,next:133303.29,note:"Wire received"},
+    {id:"mr28qomk26dww",date:"2026-07-01T15:39:07.436Z",prev:88357.29,next:110830.29,note:"Wire received"},
+    {id:"mr28fwod2j1wt",date:"2026-07-01T15:30:44.653Z",prev:83777.29,next:88357.29,note:"Wire received"},
+    {id:"init1",date:"2026-07-01T15:20:00.000Z",prev:0,next:83777.29,note:"Opening balance set"},
+  ],
+};
+
+let S={tab:"dashboard",dw:14,fcm:"all",expRev:null,wireModal:null,showExpF:false,showRevF:false,editLoId:null,editExpId:null,editRevId:null,editPayId:null,editPayRev:null,showCashLog:false,editCash:false,rCat:"All",rPay:"All",rSt:"All",rFl:"All",rFr:"",rTo:""};
+let DATA={lo:[],exp:[],rev:[],cash:0,cashLog:[]};
+
+function save(){try{localStorage.setItem(SK,JSON.stringify(DATA))}catch(_){}}
+function load(){
+  try{
+    const raw=localStorage.getItem(SK);
+    if(raw){const d=JSON.parse(raw);if(d.lo?.length){DATA=d;return;}}
+  }catch(_){}
+  DATA={lo:SEED.lo.map(o=>({...o})),exp:SEED.exp.map(e=>({...e})),rev:SEED.rev.map(r=>({...r,payouts:r.payouts.map(p=>({...p}))})),cash:SEED.cash,cashLog:[...SEED.cashLog]};
+}
+
+function applyJSON(d){
+  const lo=d.lo||d.loObligations;
+  const exp=d.exp||d.fixedExpenses;
+  const rev=d.rev||d.revenue;
+  const cash=d.cash??d.cashOnHand??0;
+  if(lo?.length)DATA.lo=lo;
+  if(exp?.length)DATA.exp=exp;
+  if(rev?.length)DATA.rev=rev;
+  DATA.cash=cash;
+  DATA.cashLog=d.cashLog||[];
+  save();render();
+}
+
+function getExp(){return{lo:DATA.lo,exp:DATA.exp,rev:DATA.rev,cash:DATA.cash,cashLog:DATA.cashLog,exportedAt:new Date().toISOString()}}
+function doExport(){const uri="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(getExp(),null,2));const a=document.createElement("a");a.href=uri;a.download="cashflow-backup-"+td()+".json";document.body.appendChild(a);a.click();document.body.removeChild(a)}
+function doImport(){const inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{applyJSON(JSON.parse(ev.target.result));alert("Data restored successfully!")}catch(_){alert("Invalid file — please use a cashflow backup JSON.")}};r.readAsText(f)};inp.click()}
+
+const rG=r=>Number(r.amount||0);
+const pP=r=>(r.payouts||[]).filter(p=>p.status==="paid").reduce((s,p)=>s+Number(p.amount||0),0);
+const pN=r=>(r.payouts||[]).filter(p=>p.status!=="paid").reduce((s,p)=>s+Number(p.amount||0),0);
+const rN=r=>rG(r)-(r.payouts||[]).reduce((s,p)=>s+Number(p.amount||0),0);
+const isF=r=>r.wireReceived&&(r.payouts||[]).length>0&&(r.payouts||[]).every(p=>p.status==="paid");
+
+function calcNet(){
+  const pp=DATA.rev.filter(r=>r.wireReceived).reduce((s,r)=>s+pN(r),0);
+  const cn=DATA.rev.filter(r=>!r.wireReceived&&r.type==="confirmed").reduce((s,r)=>s+rN(r),0);
+  const en=DATA.rev.filter(r=>!r.wireReceived&&r.type==="expected").reduce((s,r)=>s+rN(r),0);
+  const ft=DATA.exp.filter(e=>e.status==="pending").reduce((s,e)=>s+Number(e.amount||0),0);
+  const lt=DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).reduce((s,o)=>s+Number(o.amount||0),0);
+  return{net:DATA.cash+cn+en-pp-ft-lt,con:DATA.cash+cn-pp-ft-lt,pp,cn,en,ft,lt};
+}
+
+function getDue(){
+  const items=[];
+  DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).forEach(o=>items.push({kind:"LO Obligation",name:`${o.fileName} (${o.loanOfficer})`,amount:o.amount,dueDate:o.dueDate}));
+  DATA.exp.filter(e=>e.status==="pending").forEach(e=>items.push({kind:e.category==="payroll"?"Payroll":"Fixed Expense",name:e.name,amount:e.amount,dueDate:e.dueDate}));
+  DATA.rev.filter(r=>r.wireReceived).forEach(r=>(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>items.push({kind:"File Payout",name:`${p.payee} (${r.source})`,amount:p.amount,dueDate:p.dueDate||td()})));
+  DATA.rev.filter(r=>!r.wireReceived).forEach(r=>(r.payouts||[]).filter(p=>p.status!=="paid"&&p.dueDate).forEach(p=>items.push({kind:"File Payout",name:`${p.payee} (${r.source})`,amount:p.amount,dueDate:p.dueDate})));
+  return items.filter(i=>du(i.dueDate)<=S.dw).sort((a,b)=>du(a.dueDate)-du(b.dueDate));
+}
+
+function allP(){
+  const rows=[];
+  DATA.rev.forEach(r=>(r.payouts||[]).forEach(p=>rows.push({id:p.id,file:r.source,payee:p.payee,category:p.category||"Other",amount:p.amount,status:p.status,date:p.paidDate||p.dueDate||r.date})));
+  DATA.lo.filter(o=>!o.linkedRevId).forEach(o=>rows.push({id:o.id,file:o.fileName,payee:o.payee||o.loanOfficer,category:o.category||"LO Commission",amount:o.amount,status:o.status==="paid"?"paid":"pending",date:o.paidDate||o.dueDate}));
+  return rows.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+}
+
+function getFc(){
+  const map={};const t=td();
+  const add=(date,amount,label)=>{if(!date)return;if(!map[date])map[date]={date,inflow:0,outflow:0,items:[]};map[date].items.push({label,amount});if(amount>0)map[date].inflow+=amount;else map[date].outflow+=Math.abs(amount)};
+  const revs=S.fcm==="confirmed"?DATA.rev.filter(r=>r.type==="confirmed"||r.wireReceived):DATA.rev;
+  revs.forEach(r=>{
+    if(r.wireReceived){
+      (r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));
+    } else {
+      add(r.date,rN(r),r.source);
+    }
+  });
+  DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).forEach(o=>add(o.dueDate,-o.amount,o.fileName||o.loanOfficer));
+  DATA.exp.filter(e=>e.status==="pending").forEach(e=>add(e.dueDate,-e.amount,e.name));
+  if(!map[t])map[t]={date:t,inflow:0,outflow:0,items:[]};
+  let bal=DATA.cash;
+  return Object.values(map).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>{bal+=d.inflow-d.outflow;return{...d,balance:bal,sf:bal<0}});
+}
+
+function fmtK2(n){const v=Number(n);return Math.abs(v)>=1000?`${v<0?"-":""}$${(Math.abs(v)/1000).toFixed(0)}k`:fmt(v)}
+
+function fChart(data){
+  if(!data||data.length<2)return`<div class="emp">Add revenue and expenses to see forecast.</div>`;
+  const W=700,H=240,PL=60,PR=12,PT=12,PB=38,cW=W-PL-PR,cH=H-PT-PB;
+  const av=data.flatMap(d=>[d.balance,d.inflow,-d.outflow]);
+  const mn=Math.min(0,...av),mx=Math.max(0,...av),rng=mx-mn||1;
+  const mg=Math.pow(10,Math.floor(Math.log10(rng/5)));
+  const nc=[1,2,5,10].map(f=>f*mg).find(f=>f>=rng/5)||mg*10;
+  const yMn=Math.floor(mn/nc)*nc,yMx=Math.ceil(mx/nc)*nc,yR=yMx-yMn||1;
+  const tks=[];for(let v=yMn;v<=yMx+nc*0.01;v+=nc)tks.push(Math.round(v*1e6)/1e6);
+  const xO=i=>PL+(i/Math.max(data.length-1,1))*cW;
+  const yO=v=>PT+cH-((v-yMn)/yR)*cH;
+  const zY=yO(0);const st=cW/Math.max(data.length,1),bW=Math.max(3,Math.min(16,st*0.28));
+  const path=data.map((d,i)=>`${i===0?"M":"L"}${xO(i).toFixed(1)},${yO(d.balance).toFixed(1)}`).join(" ");
+  const ev=Math.ceil(data.length/8);
+  let bars="",pts="";
+  data.forEach((d,i)=>{
+    const cx=xO(i);
+    const tipItems=d.items.map(it=>`${it.label}: ${it.amount>0?"+":""}${fmt(it.amount)}`).join("&#10;");
+    const tip=`${fmtS(d.date)} | Balance: ${fmt(d.balance)}&#10;${tipItems}`;
+    if(d.inflow>0)bars+=`<rect x="${(cx-bW-1).toFixed(1)}" y="${Math.min(yO(d.inflow),zY).toFixed(1)}" width="${bW}" height="${Math.abs(yO(d.inflow)-zY).toFixed(1)}" fill="#059669" opacity=".8" rx="2"><title>${tip}</title></rect>`;
+    if(d.outflow>0)bars+=`<rect x="${(cx+1).toFixed(1)}" y="${zY.toFixed(1)}" width="${bW}" height="${Math.abs(yO(-d.outflow)-zY).toFixed(1)}" fill="#dc2626" opacity=".8" rx="2"><title>${tip}</title></rect>`;
+    pts+=`<circle cx="${cx.toFixed(1)}" cy="${yO(d.balance).toFixed(1)}" r="4" fill="${d.sf?"#dc2626":"#6366f1"}" stroke="#fff" stroke-width="1.5" style="cursor:pointer"><title>${tip}</title></circle>`;
+  });
+  const tls=tks.map(t=>`<line x1="${PL}" x2="${W-PR}" y1="${yO(t).toFixed(1)}" y2="${yO(t).toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/><text x="${PL-5}" y="${(yO(t)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#9ca3af">${fmtK2(t)}</text>`).join("");
+  const xl=data.map((d,i)=>i%ev===0?`<text x="${xO(i).toFixed(1)}" y="${H-PB+14}" text-anchor="middle" font-size="10" fill="#9ca3af">${fmtS(d.date)}</text>`:"").join("");
+  return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${tls}<line x1="${PL}" x2="${W-PR}" y1="${zY.toFixed(1)}" y2="${zY.toFixed(1)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3"/>${bars}<path d="${path}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts}${xl}<g transform="translate(${PL},${H-4})"><rect x="0" y="-8" width="10" height="10" fill="#059669" opacity=".8" rx="1"/><text x="13" y="2" font-size="10" fill="#6b7280">Inflow</text><rect x="52" y="-8" width="10" height="10" fill="#dc2626" opacity=".8" rx="1"/><text x="65" y="2" font-size="10" fill="#6b7280">Outflow</text><line x1="112" x2="124" y1="-2" y2="-2" stroke="#6366f1" stroke-width="2.5"/><circle cx="118" cy="-2" r="3" fill="#6366f1"/><text x="128" y="2" font-size="10" fill="#6b7280">Balance</text></g></svg>`;
+}
+
+function render(){
+  const root=document.getElementById("root");if(!root)return;
+  const {net,con,pp,cn,en,ft,lt}=calcNet();
+  const due=getDue();
+  const outf=due.reduce((s,i)=>s+Number(i.amount||0),0);
+  const inf=DATA.cash+cn+en;
+  const flag=outf>(inf-pp);
+  const funded=DATA.rev.filter(isF).sort((a,b)=>(b.receivedDate||"").localeCompare(a.receivedDate||""));
+  const aRev=DATA.rev.filter(r=>!isF(r)).sort((a,b)=>a.date.localeCompare(b.date));
+  const pLo=DATA.lo.filter(o=>o.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const dLo=DATA.lo.filter(o=>o.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
+  const pExp=DATA.exp.filter(e=>e.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const dExp=DATA.exp.filter(e=>e.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
+
+  const tabs=[
+    {id:"dashboard",l:"Dashboard"},{id:"forecast",l:"Forecast"},
+    {id:"lo",l:"LO Obligations"},{id:"expenses",l:"Fixed Expenses"},
+    {id:"revenue",l:"Revenue"},{id:"funded",l:`Funded Files${funded.length?` <span class="pill pg" style="font-size:10px">${funded.length}</span>`:""}`},
+    {id:"report",l:"Payouts Report"},{id:"archive",l:"Archive"},
+  ];
+
+  let body="";
+
+  if(S.tab==="dashboard"){
+    const nc=net>=0?"#059669":"#dc2626";
+    const dr=due.length===0?`<tr><td colspan="4" class="emp">Nothing due in this window.</td></tr>`:due.map(i=>`<tr><td style="color:#888">${i.kind}</td><td style="font-weight:500">${i.name}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dc(i.dueDate)}</td></tr>`).join("");
+    const lh=S.showCashLog&&DATA.cashLog.length?`<div class="clog">${DATA.cashLog.map(e=>{const df=e.next-e.prev;return`<div class="clr">${new Date(e.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}: ${fmt(e.prev)} → <b>${fmt(e.next)}</b> <span style="color:${df>=0?"#059669":"#dc2626"}">(${df>=0?"+":""}${fmt(df)})</span>${e.note?` · ${e.note}`:""}</div>`}).join("")}</div>`:"";
+    const ce=S.editCash
+      ?`<span style="display:flex;align-items:center;gap:6px"><input type="number" id="ci" value="${DATA.cash}" style="width:130px;text-align:right"/><button class="bgn bsm" onclick="saveCash()">✓</button><button class="bsm" onclick="S.editCash=false;render()">✕</button></span>`
+      :`<span style="display:flex;align-items:center;gap:8px;font-weight:600">${fmt(DATA.cash)}<button class="bsm" onclick="S.editCash=true;render()" style="padding:2px 8px">✏</button></span>`;
+    body=`
+    ${flag?`<div class="alrt ard">⚠ <b>Shortfall risk in ${S.dw}d window</b> — obligations (${fmt(outf)}) exceed available funds by ${fmt(outf-(inf-pp))}.</div>`:""}
+    <div class="card">
+      <div class="sh"><span style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em">Net Position</span></div>
+      <div style="font-size:32px;font-weight:700;color:${nc};margin-bottom:14px">${fmt(net)}</div>
+      <div class="ngrid">
+        <div class="nrow"><span style="color:#888">Cash on hand (incl. received wires)</span>${ce}</div>
+        <div class="nrow"><span style="color:#888">− Pending file payouts</span><span style="color:#dc2626;font-weight:600">${fmt(pp)}</span></div>
+        <div class="nrow"><span style="color:#888">+ Confirmed (not yet received)</span><span style="color:#059669;font-weight:600">${fmt(cn)}</span></div>
+        <div class="nrow"><span style="color:#888">+ Expected revenue (net)</span><span style="color:#d97706;font-weight:600">${fmt(en)}</span></div>
+        <div class="nrow"><span style="color:#888">− Fixed expenses (unpaid)</span><span style="color:#dc2626;font-weight:600">${fmt(ft)}</span></div>
+        <div class="nrow"><span style="color:#888">− LO obligations (unpaid, unlinked)</span><span style="color:#dc2626;font-weight:600">${fmt(lt)}</span></div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:10px">Conservative (no expected): <span style="color:${con>=0?"#059669":"#dc2626"};font-weight:600">${fmt(con)}</span></div>
+      ${DATA.cashLog.length?`<button onclick="S.showCashLog=!S.showCashLog;render()" style="font-size:12px;margin-top:8px;background:none;border:none;color:#888;cursor:pointer;padding:0">${S.showCashLog?"▾":"▸"} Cash history (${DATA.cashLog.length})</button>${lh}`:""}
+    </div>
+    <div class="card">
+      <div class="sh">
+        <span style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em">Due Soon</span>
+        <div style="display:flex;gap:4px;background:#f1f3f5;padding:3px;border-radius:8px">${[7,14,30].map(w=>`<button onclick="S.dw=${w};render()" class="tab${S.dw===w?" on":""}" style="padding:4px 10px;font-size:12px">${w}d</button>`).join("")}</div>
+      </div>
+      <table><thead><tr><th>Type</th><th>Name</th><th style="text-align:right">Amount</th><th>Due</th></tr></thead>
+      <tbody>${dr}</tbody>
+      ${due.length?`<tfoot><tr><td colspan="2" style="color:#888;font-size:12px">Total due in window</td><td style="text-align:right">${fmt(outf)}</td><td></td></tr></tfoot>`:""}
+      </table>
+    </div>`;
+  }
+
+  else if(S.tab==="forecast"){
+    const fd=getFc();const hs=fd.some(d=>d.sf);
+    const tI=fd.reduce((s,d)=>s+d.inflow,0),tO=fd.reduce((s,d)=>s+d.outflow,0);
+    body=`
+    ${hs?`<div class="alrt ard">⚠ <b>Projected shortfall</b> — running balance dips below zero. Review timeline below.</div>`:""}
+    <div class="card">
+      <div class="sh"><span style="font-weight:600">Cash Flow Forecast</span>
+        <div style="display:flex;gap:4px;background:#f1f3f5;padding:3px;border-radius:8px">
+          <button onclick="S.fcm='all';render()" class="tab${S.fcm==="all"?" on":""}" style="padding:4px 10px;font-size:12px">All Revenue</button>
+          <button onclick="S.fcm='confirmed';render()" class="tab${S.fcm==="confirmed"?" on":""}" style="padding:4px 10px;font-size:12px">Confirmed Only</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Hover over any bar or dot to see details.</p>
+      ${fChart(fd)}
+      <div class="mgrid" style="margin-top:12px">
+        <div class="met"><div class="mlb">Starting balance</div><div class="mvl">${fmt(DATA.cash)}</div></div>
+        <div class="met"><div class="mlb">Total inflows</div><div class="mvl" style="color:#059669">${fmt(tI)}</div></div>
+        <div class="met"><div class="mlb">Total outflows</div><div class="mvl" style="color:#dc2626">${fmt(tO)}</div></div>
+      </div>
+    </div>
+    <div class="card"><div style="font-weight:600;margin-bottom:10px">Timeline Events</div>
+    <table><thead><tr><th>Date</th><th>Events</th><th style="text-align:right">Net flow</th><th style="text-align:right">Running balance</th></tr></thead><tbody>
+    ${fd.map(d=>`<tr style="${d.sf?"background:#fef2f2":""}"><td style="color:#888;white-space:nowrap">${fmtD(d.date)}</td><td>${d.items.length===0?`<span style="font-size:12px;color:#aaa">Starting balance</span>`:d.items.map(it=>`<div style="font-size:12px;color:${it.amount>0?"#059669":"#dc2626"}">${it.label}: ${it.amount>0?"+":""}${fmt(it.amount)}</div>`).join("")}</td><td style="text-align:right">${(d.inflow-d.outflow)!==0?`<span style="font-weight:600;color:${d.inflow-d.outflow>0?"#059669":"#dc2626"}">${d.inflow-d.outflow>0?"+":""}${fmt(d.inflow-d.outflow)}</span>`:""}</td><td style="text-align:right;font-weight:600;color:${d.sf?"#dc2626":"#1a1a1a"}">${fmt(d.balance)}${d.sf?" ⚠":""}</td></tr>`).join("")}
+    </tbody></table></div>`;
+  }
+
+  else if(S.tab==="lo"){
+    const lt2=pLo.reduce((s,o)=>s+Number(o.amount||0),0);
+    const rows=pLo.length===0?`<tr><td colspan="7" class="emp">No pending LO obligations.</td></tr>`:
+      pLo.map(o=>{
+        if(S.editLoId===o.id) return`<tr style="background:#f8f9fa">
+          <td><input id="el_lo" value="${o.loanOfficer}" style="width:85px"/></td>
+          <td><input id="el_fn" value="${o.fileName||""}" style="width:85px"/></td>
+          <td>${cb(o.category)}</td>
+          <td><input id="el_am" type="number" value="${o.amount}" style="width:90px;text-align:right"/></td>
+          <td><input id="el_dd" type="date" value="${o.dueDate}" style="width:130px"/></td>
+          <td></td>
+          <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditLo('${o.id}')">✓ Save</button><button class="bsm" onclick="S.editLoId=null;render()">✕</button></div></td>
+        </tr>`;
+        return`<tr>
+          <td style="font-weight:500">${o.loanOfficer}${o.linkedRevId?`<div style="font-size:11px;color:#4f46e5">🔗 linked</div>`:""}</td>
+          <td style="color:#888">${o.fileName||"—"}</td>
+          <td>${cb(o.category)}</td>
+          <td style="text-align:right">${fmt(o.amount)}</td>
+          <td>${dc(o.dueDate)}</td>
+          <td><span class="pill ps">Pending</span></td>
+          <td style="text-align:right"><div class="acts">
+            ${OR.has(o.id)?`<button class="bsm" onclick="S.editLoId='${o.id}';render()">✏</button>`:""}
+            <button class="bgn bsm" onclick="markLoPaid('${o.id}')">✓ Paid</button>
+            <button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button>
+          </div></td>
+        </tr>`;
+      }).join("");
+    body=`<div class="card">
+      <div class="sh"><div><div style="font-weight:600">Variable LO Obligations</div><div style="font-size:12px;color:#888;margin-top:2px">All pending obligations — original AKIB files and linked obligations from revenue files.</div></div></div>
+      <table><thead><tr><th>Loan Officer</th><th>File Name</th><th>Category</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+      ${pLo.length?`<tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total outstanding (all pending)</td><td style="text-align:right">${fmt(lt2)}</td><td colspan="3"></td></tr></tfoot>`:""}
+      </table>
+    </div>`;
+  }
+
+  else if(S.tab==="expenses"){
+    const et=pExp.reduce((s,e)=>s+Number(e.amount||0),0);
+    const rows=pExp.length===0?`<tr><td colspan="6" class="emp">No pending expenses.</td></tr>`:
+      pExp.map(e=>{
+        if(S.editExpId===e.id) return`<tr style="background:#f8f9fa">
+          <td><input id="ee_nm" value="${e.name}" style="width:110px"/></td>
+          <td><select id="ee_ct"><option value="payroll" ${e.category==="payroll"?"selected":""}>Payroll</option><option value="recurring" ${e.category==="recurring"?"selected":""}>Recurring</option></select></td>
+          <td><select id="ee_cd"><option value="weekly" ${e.cadence==="weekly"?"selected":""}>Weekly</option><option value="monthly" ${e.cadence==="monthly"?"selected":""}>Monthly</option></select></td>
+          <td><input id="ee_am" type="number" value="${e.amount}" style="width:90px;text-align:right"/></td>
+          <td><input id="ee_dd" type="date" value="${e.dueDate}" style="width:130px"/></td>
+          <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditExp('${e.id}')">✓ Save</button><button class="bsm" onclick="S.editExpId=null;render()">✕</button></div></td>
+        </tr>`;
+        return`<tr>
+          <td style="font-weight:500">${e.name}</td>
+          <td style="color:#888">${e.category}</td>
+          <td style="color:#888">${e.cadence}</td>
+          <td style="text-align:right">${fmt(e.amount)}</td>
+          <td>${dc(e.dueDate)}</td>
+          <td style="text-align:right"><div class="acts">
+            <button class="bsm" onclick="S.editExpId='${e.id}';render()">✏</button>
+            <button class="bgn bsm" onclick="markExpPaid('${e.id}')">✓ Paid</button>
+            <button class="bsm" onclick="delExp('${e.id}')" style="color:#dc2626">✕</button>
+          </div></td>
+        </tr>`;
+      }).join("");
+    const af=S.showExpF?`<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div class="frow">
+        <div><label class="lbl">Name</label><input id="ef_nm" placeholder="Expense name"/></div>
+        <div><label class="lbl">Category</label><select id="ef_ct"><option value="payroll">Payroll</option><option value="recurring" selected>Recurring</option></select></div>
+        <div><label class="lbl">Cadence</label><select id="ef_cd"><option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option></select></div>
+        <div><label class="lbl">Amount</label><input id="ef_am" type="number" placeholder="0"/></div>
+        <div><label class="lbl">Due date</label><input id="ef_dd" type="date" value="${td()}"/></div>
+      </div>
+      <button class="bgn bsm" onclick="addExp()">+ Add Expense</button>
+    </div>`:"";
+    body=`<div class="card">
+      <div class="sh"><span style="font-weight:600">Fixed Monthly Expenses</span><button class="${S.showExpF?"bsm":"bdk bsm"}" onclick="S.showExpF=!S.showExpF;render()">${S.showExpF?"✕ Cancel":"+ Add Expense"}</button></div>
+      ${af}
+      <table><thead><tr><th>Name</th><th>Category</th><th>Cadence</th><th style="text-align:right">Amount</th><th>Due Date</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+      ${pExp.length?`<tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total outstanding</td><td style="text-align:right">${fmt(et)}</td><td colspan="2"></td></tr></tfoot>`:""}
+      </table>
+    </div>`;
+  }
+
+  else if(S.tab==="revenue"){
+    const arf=S.showRevF?`<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div class="frow">
+        <div style="flex:2;min-width:140px"><label class="lbl">Source / file name</label><input id="rf_sr" placeholder="File name"/></div>
+        <div><label class="lbl">Type</label><select id="rf_tp"><option value="expected">Expected</option><option value="confirmed">Confirmed</option></select></div>
+        <div><label class="lbl">Amount</label><input id="rf_am" type="number" placeholder="0"/></div>
+        <div><label class="lbl">Date</label><input id="rf_dt" type="date" value="${td()}"/></div>
+      </div>
+      <button class="bgn bsm" onclick="addRev()">+ Add Revenue</button>
+    </div>`:"";
+
+    const revRows=aRev.length===0?`<tr><td colspan="7" class="emp">No active revenue entries.</td></tr>`:
+      aRev.flatMap(r=>{
+        if(S.editRevId===r.id) return[`<tr style="background:#f8f9fa">
+          <td colspan="2"><input id="er_sr" value="${r.source}" style="width:140px"/></td>
+          <td></td>
+          <td><input id="er_am" type="number" value="${r.amount}" style="width:100px;text-align:right"/></td>
+          <td><input id="er_dt" type="date" value="${r.date}" style="width:130px"/></td>
+          <td><select id="er_tp"><option value="expected" ${r.type==="expected"?"selected":""}>Expected</option><option value="confirmed" ${r.type==="confirmed"?"selected":""}>Confirmed</option></select></td>
+          <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditRev('${r.id}')">✓ Save</button><button class="bsm" onclick="S.editRevId=null;render()">✕</button></div></td>
+        </tr>`];
+
+        const pays=r.payouts||[];const pd=pP(r);const net=rN(r);
+        const isEx=S.expRev===r.id;const pc=pays.filter(p=>p.status!=="paid").length;
+        const badge=r.wireReceived?`<span class="pill pg">✓ Wire In</span>`:r.type==="confirmed"?`<span class="pill pb">Confirmed</span>`:`<span class="pill pa">Expected</span>`;
+        const wireAction=r.wireReceived
+          ?`<div style="font-size:11px;color:#059669;margin-top:3px;margin-left:14px">💲 Wire received ${fmtD(r.receivedDate)} <button class="bsm" onclick="event.stopPropagation();undoWire('${r.id}')" style="font-size:11px;color:#888;margin-left:4px;padding:1px 6px">↩ Undo</button></div>`
+          :`<div style="margin-top:4px;margin-left:14px"><button class="bgn bsm" onclick="event.stopPropagation();openWire('${r.id}')">💲 Wire Received</button></div>`;
+
+        const mainRow=`<tr style="${r.wireReceived?"background:#f0fdf4":""}">
+          <td><button onclick="S.expRev=S.expRev==='${r.id}'?null:'${r.id}';render()" style="background:none;border:none;cursor:pointer;font-size:13px;font-family:inherit;text-align:left;padding:0;color:#1a1a1a;width:100%">
+            ${isEx?"▾":"▸"} <b>${r.source}</b>${pays.length>0?` <span style="font-size:11px;color:#888">(${pc} pending)</span>`:""}
+            ${wireAction}
+          </button></td>
+          <td style="text-align:right">${fmt(rG(r))}</td>
+          <td style="text-align:right;color:#dc2626">${pd>0?`−${fmt(pd)}`:"—"}</td>
+          <td style="text-align:right;font-weight:600">${fmt(net)}</td>
+          <td style="color:#888">${fmtD(r.date)}</td>
+          <td>${badge}</td>
+          <td style="text-align:right"><div class="acts">
+            ${!r.wireReceived?`<button class="bsm" onclick="S.editRevId='${r.id}';render()">✏</button><button class="bsm" onclick="toggleRevType('${r.id}')">${r.type==="expected"?"→ Confirm":"→ Unconfirm"}</button>`:""}
+            <button class="bsm" onclick="delRev('${r.id}')" style="color:#dc2626">✕</button>
+          </div></td>
+        </tr>`;
+
+        if(!isEx)return[mainRow];
+
+        const payRows=pays.length===0?`<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet for this file.</div>`:
+          `<table style="margin-bottom:8px"><thead><tr><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Send by</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>`+
+          pays.map(p=>{
+            if(S.editPayId===p.id&&S.editPayRev===r.id) return`<tr style="background:#fff">
+              <td><input id="ep_py" value="${p.payee}" style="width:90px"/></td>
+              <td><select id="ep_ct">${PC.map(c=>`<option value="${c}" ${p.category===c?"selected":""}>${c}</option>`).join("")}</select></td>
+              <td><input id="ep_am" type="number" value="${p.amount}" style="width:90px;text-align:right"/></td>
+              <td><input id="ep_dd" type="date" value="${p.dueDate||""}" style="width:130px"/></td>
+              <td></td>
+              <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditPay('${r.id}','${p.id}')">✓ Save</button><button class="bsm" onclick="S.editPayId=null;render()">✕</button></div></td>
+            </tr>`;
+            const ip=p.status==="paid";
+            return`<tr style="${ip?"opacity:.65":""}">
+              <td style="font-weight:500">${p.payee}</td>
+              <td>${cb(p.category)}</td>
+              <td style="text-align:right;color:#dc2626">−${fmt(p.amount)}</td>
+              <td style="color:#888">${fmtD(p.dueDate)}</td>
+              <td>${ip?`<span class="pill pg">✓ Sent ${fmtD(p.paidDate)}</span>`:`<span class="pill po">Pending</span>`}</td>
+              <td style="text-align:right"><div class="acts">
+                <button class="bsm" onclick="S.editPayId='${p.id}';S.editPayRev='${r.id}';render()">✏</button>
+                ${!ip&&r.wireReceived?`<button class="bgn bsm" onclick="markPayPaid('${r.id}','${p.id}')">✓ Sent</button>`:""}
+                ${ip?`<button class="bsm" onclick="restorePay('${r.id}','${p.id}')">↺ Restore</button>`:""}
+                <button class="bsm" onclick="delPay('${r.id}','${p.id}')" style="color:#dc2626">✕</button>
+              </div></td>
+            </tr>`;
+          }).join("")+`</tbody></table>`;
+
+        const expRow=`<tr><td colspan="7" class="psub">
+          <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">File-related payouts</div>
+          ${payRows}
+          <div class="sfrm">
+            <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Add Payout</div>
+            <div class="frow">
+              <div><label class="lbl">Payee</label><input id="ap_py_${r.id}" placeholder="Payee name"/></div>
+              <div><label class="lbl">Category</label><select id="ap_ct_${r.id}">${PC.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></div>
+              <div><label class="lbl">Amount</label><input id="ap_am_${r.id}" type="number" placeholder="0"/></div>
+              <div><label class="lbl">Send by</label><input id="ap_dd_${r.id}" type="date" value="${td()}"/></div>
+            </div>
+            <label class="ckr"><input type="checkbox" id="ap_lo_${r.id}" onchange="document.getElementById('ap_lox_${r.id}').style.display=this.checked?'block':'none'"/> 🔗 Also create as LO Obligation</label>
+            <div id="ap_lox_${r.id}" style="display:none;padding-left:14px;border-left:2px solid #c7d2fe;margin-top:4px;margin-bottom:8px">
+              <div class="frow">
+                <div><label class="lbl">Loan officer name</label><input id="ap_ll_${r.id}" placeholder="LO name"/></div>
+                <div><label class="lbl">LO due date</label><input id="ap_ld_${r.id}" type="date" value="${td()}"/></div>
+              </div>
+            </div>
+            <button class="bdk bsm" onclick="addPay('${r.id}')">+ Add Payout</button>
+          </div>
+        </td></tr>`;
+
+        return[mainRow,expRow];
+      }).flat();
+
+    const tG=aRev.reduce((s,r)=>s+rG(r),0),tPd=aRev.reduce((s,r)=>s+pP(r),0),tNt=aRev.reduce((s,r)=>s+rN(r),0);
+    body=`<div class="card">
+      <div class="sh"><span style="font-weight:600">Revenue</span><button class="${S.showRevF?"bsm":"bdk bsm"}" onclick="S.showRevF=!S.showRevF;render()">${S.showRevF?"✕ Cancel":"+ Add Revenue"}</button></div>
+      ${arf}
+      <div style="font-size:12px;color:#888;margin-bottom:10px">Click ▸ to expand a file and see/add payouts. Click <b>Wire Received</b> when a wire lands — cash on hand updates automatically.</div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Source</th><th style="text-align:right">Gross</th><th style="text-align:right">Payouts out</th><th style="text-align:right">Net remaining</th><th>Date</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody>${revRows}</tbody>
+      ${aRev.length?`<tfoot><tr><td style="color:#888;font-size:12px">Totals (${aRev.length} active files)</td><td style="text-align:right">${fmt(tG)}</td><td style="text-align:right;color:#dc2626">${tPd>0?`−${fmt(tPd)}`:"—"}</td><td style="text-align:right;color:#059669;font-weight:600">${fmt(tNt)}</td><td colspan="3"></td></tr></tfoot>`:""}
+      </table></div>
+    </div>`;
+  }
+
+  else if(S.tab==="funded"){
+    const items=funded.length===0?`<div class="emp" style="padding:48px"><div style="font-size:32px;margin-bottom:8px;opacity:.3">✓</div>No fully funded files yet.<br><span style="font-size:12px">A file appears here once the wire is received and all payouts are marked sent.</span></div>`:
+      funded.map(r=>{const tot=r.payouts.reduce((s,p)=>s+Number(p.amount||0),0),net=rG(r)-tot;return`<div class="fcd"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div><div style="font-weight:600;font-size:15px">${r.source}</div><div style="font-size:12px;color:#059669;margin-top:2px">💲 Wire received ${fmtD(r.receivedDate)}</div></div><div style="text-align:right"><div style="font-size:11px;color:#888">Gross</div><div style="font-weight:600">${fmt(rG(r))}</div></div></div><div style="border-top:1px solid #a7f3d0;padding-top:10px">${r.payouts.map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><div style="display:flex;gap:6px;align-items:center">${p.payee} ${cb(p.category)}</div><div style="display:flex;gap:8px;align-items:center"><span style="color:#dc2626">−${fmt(p.amount)}</span><span class="pill pg">✓ Sent ${fmtD(p.paidDate)}</span></div></div>`).join("")}<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #a7f3d0;font-weight:600"><span>Net retained</span><span style="color:#059669">${fmt(net)}</span></div></div></div>`}).join("")+
+      `<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid #eee;font-size:13px"><span style="color:#888">Total net retained across all funded files</span><span style="font-weight:600;color:#059669">${fmt(funded.reduce((s,r)=>s+rG(r)-r.payouts.reduce((ps,p)=>ps+Number(p.amount||0),0),0))}</span></div>`;
+    body=`<div class="card"><div style="font-weight:600;margin-bottom:4px">✓ Funded Files <span style="font-size:13px;font-weight:400;color:#888">(${funded.length} complete)</span></div><div style="font-size:12px;color:#888;margin-bottom:14px">Wire received and all distributions sent. Fully settled.</div>${items}</div>`;
+  }
+
+  else if(S.tab==="report"){
+    const ap=allP();
+    const fil=ap.filter(p=>{
+      if(S.rCat!=="All"&&p.category!==S.rCat)return false;
+      if(S.rPay!=="All"&&p.payee!==S.rPay)return false;
+      if(S.rSt!=="All"&&p.status!==S.rSt)return false;
+      if(S.rFl!=="All"&&p.file!==S.rFl)return false;
+      if(S.rFr&&p.date&&p.date<S.rFr)return false;
+      if(S.rTo&&p.date&&p.date>S.rTo)return false;
+      return true;
+    });
+    const rT=fil.reduce((s,p)=>s+Number(p.amount||0),0);
+    const rPd=fil.filter(p=>p.status==="paid").reduce((s,p)=>s+Number(p.amount||0),0);
+    const bC={};fil.forEach(p=>{if(!bC[p.category])bC[p.category]=0;bC[p.category]+=Number(p.amount||0)});
+    const bCA=Object.entries(bC).sort((a,b)=>b[1]-a[1]);
+    const pays=["All",...new Set(ap.map(p=>p.payee).filter(Boolean))];
+    const files=["All",...new Set(ap.map(p=>p.file).filter(Boolean))];
+    body=`
+    <div class="mgrid">
+      <div class="met"><div class="mlb">Total (filtered)</div><div class="mvl">${fmt(rT)}</div></div>
+      <div class="met"><div class="mlb">Paid / Sent</div><div class="mvl" style="color:#059669">${fmt(rPd)}</div></div>
+      <div class="met"><div class="mlb">Pending</div><div class="mvl" style="color:#d97706">${fmt(rT-rPd)}</div></div>
+    </div>
+    ${bCA.length?`<div class="card"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">By Category</div>${bCA.map(([cat,tot])=>{const pct=rT>0?Math.round((tot/rT)*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${cb(cat)}</span><span style="font-weight:600">${fmt(tot)} <span style="color:#888;font-size:11px;font-weight:400">${pct}%</span></span></div><div class="bbg"><div class="bfg" style="width:${pct}%"></div></div></div>`}).join("")}</div>`:""}
+    <div class="card">
+      <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Filters</div>
+      <div class="fgrid">
+        <div><label class="lbl">Category</label><select onchange="S.rCat=this.value;render()">${["All",...PC].map(c=>`<option value="${c}" ${S.rCat===c?"selected":""}>${c}</option>`).join("")}</select></div>
+        <div><label class="lbl">Payee</label><select onchange="S.rPay=this.value;render()">${pays.map(p=>`<option value="${p}" ${S.rPay===p?"selected":""}>${p}</option>`).join("")}</select></div>
+        <div><label class="lbl">Status</label><select onchange="S.rSt=this.value;render()"><option value="All">All</option><option value="paid" ${S.rSt==="paid"?"selected":""}>Paid / Sent</option><option value="pending" ${S.rSt==="pending"?"selected":""}>Pending</option></select></div>
+        <div><label class="lbl">File</label><select onchange="S.rFl=this.value;render()">${files.map(f=>`<option value="${f}" ${S.rFl===f?"selected":""}>${f}</option>`).join("")}</select></div>
+        <div><label class="lbl">From date</label><input type="date" value="${S.rFr}" onchange="S.rFr=this.value;render()"/></div>
+        <div><label class="lbl">To date</label><input type="date" value="${S.rTo}" onchange="S.rTo=this.value;render()"/></div>
+      </div>
+      <button onclick="S.rCat='All';S.rPay='All';S.rSt='All';S.rFl='All';S.rFr='';S.rTo='';render()" style="font-size:12px;background:none;border:none;color:#888;cursor:pointer;text-decoration:underline;padding:0;margin-top:4px">Clear all filters</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:10px">${fil.length} Payout${fil.length!==1?"s":""}</div>
+      <div style="overflow-x:auto"><table><thead><tr><th>File</th><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>${fil.length===0?`<tr><td colspan="6" class="emp">No payouts match the current filters.</td></tr>`:fil.map(p=>`<tr><td style="color:#888">${p.file}</td><td style="font-weight:500">${p.payee}</td><td>${cb(p.category)}</td><td style="text-align:right">${fmt(p.amount)}</td><td style="color:#888">${fmtD(p.date)}</td><td>${p.status==="paid"?`<span class="pill pg">✓ Paid</span>`:`<span class="pill po">Pending</span>`}</td></tr>`).join("")}</tbody>
+      ${fil.length?`<tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total</td><td style="text-align:right">${fmt(rT)}</td><td colspan="2"></td></tr></tfoot>`:""}
+      </table></div>
+    </div>`;
+  }
+
+  else if(S.tab==="archive"){
+    const lR=dLo.length===0?`<tr><td colspan="6" class="emp">No paid LO obligations yet.</td></tr>`:dLo.map(o=>`<tr style="color:#888"><td>${o.loanOfficer}</td><td>${o.fileName||"—"}</td><td style="text-align:right">${fmt(o.amount)}</td><td>${fmtD(o.dueDate)}</td><td>${fmtD(o.paidDate)}</td><td style="text-align:right"><div class="acts"><button class="bsm" onclick="restoreLo('${o.id}')">↺ Restore</button><button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button></div></td></tr>`).join("");
+    const eR=dExp.length===0?`<tr><td colspan="6" class="emp">No paid expenses yet.</td></tr>`:dExp.map(e=>`<tr style="color:#888"><td>${e.name}</td><td>${e.category}</td><td style="text-align:right">${fmt(e.amount)}</td><td>${fmtD(e.dueDate)}</td><td>${fmtD(e.paidDate)}</td><td style="text-align:right"><div class="acts">${(e.cadence==="weekly"||e.cadence==="monthly")?`<button class="bsm" onclick="genNext('${e.id}')">↻ Gen Next</button>`:""}<button class="bsm" onclick="restoreExp('${e.id}')">↺ Restore</button><button class="bsm" onclick="delExp('${e.id}')" style="color:#dc2626">✕</button></div></td></tr>`).join("");
+    body=`
+    <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid LO Obligations</div>
+    <table><thead><tr><th>Loan Officer</th><th>File Name</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${lR}</tbody></table></div>
+    <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid Fixed Expenses</div>
+    <table><thead><tr><th>Name</th><th>Category</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${eR}</tbody></table></div>`;
+  }
+
+  const wh=S.wireModal?`<div class="wov"><div class="wmd">
+    <div style="font-weight:600;font-size:16px;margin-bottom:4px">💲 Wire Received</div>
+    <div style="font-size:13px;color:#888;margin-bottom:14px">Confirm the wire amount and date received. Cash on hand will update automatically.</div>
+    <div style="margin-bottom:10px"><label class="lbl">Wire amount received</label><input type="number" id="wm_am" value="${S.wireModal.amount}"/></div>
+    <div style="margin-bottom:16px"><label class="lbl">Date received</label><input type="date" id="wm_dt" value="${S.wireModal.receivedDate}"/></div>
+    <div style="display:flex;gap:8px"><button class="bgn" onclick="confirmWire('${S.wireModal.revId}')" style="flex:1">✓ Confirm Wire Received</button><button onclick="S.wireModal=null;render()">Cancel</button></div>
+  </div></div>`:"";
+
+  root.innerHTML=`
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Cash Flow & Obligations Tracker</div>
+      <div class="hdr-sub">Allied Home Capital — Live across LO obligations, expenses, and revenue.</div>
+    </div>
+    <div class="hdr-acts">
+      <button class="bsm" onclick="doImport()">⬆ Import</button>
+      <button class="bdk bsm" onclick="doExport()">⬇ Export</button>
+    </div>
+  </div>
+  <div class="tabs">${tabs.map(t=>`<button class="tab${S.tab===t.id?" on":""}" onclick="S.tab='${t.id}';render()">${t.l}</button>`).join("")}</div>
+  ${body}${wh}`;
+}
+
+function saveCash(){const v=parseFloat(document.getElementById("ci")?.value);if(isNaN(v))return;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:v},...DATA.cashLog];DATA.cash=v;S.editCash=false;save();render()}
+function saveEditLo(id){const lo=document.getElementById("el_lo")?.value?.trim();const fn=document.getElementById("el_fn")?.value?.trim();const am=parseFloat(document.getElementById("el_am")?.value);const dd=document.getElementById("el_dd")?.value;if(!lo||!am||!dd)return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,loanOfficer:lo,fileName:fn,amount:am,dueDate:dd}:o);S.editLoId=null;save();render()}
+function saveEditExp(id){const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;save();render()}
+function saveEditRev(id){const sr=document.getElementById("er_sr")?.value?.trim();const am=parseFloat(document.getElementById("er_am")?.value);const dt=document.getElementById("er_dt")?.value;const tp=document.getElementById("er_tp")?.value;if(!sr||!am||!dt)return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,source:sr,amount:am,date:dt,type:tp}:r);S.editRevId=null;save();render()}
+function saveEditPay(revId,pid){const py=document.getElementById("ep_py")?.value?.trim();const ct=document.getElementById("ep_ct")?.value;const am=parseFloat(document.getElementById("ep_am")?.value);const dd=document.getElementById("ep_dd")?.value;if(!py||!am)return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,payee:py,category:ct,amount:am,dueDate:dd||p.dueDate}:p)}:r);S.editPayId=null;S.editPayRev=null;save();render()}
+function addExp(){const nm=document.getElementById("ef_nm")?.value?.trim();const ct=document.getElementById("ef_ct")?.value;const cd=document.getElementById("ef_cd")?.value;const am=parseFloat(document.getElementById("ef_am")?.value);const dd=document.getElementById("ef_dd")?.value;if(!nm||!am||!dd)return;DATA.exp.push({id:gid(),name:nm,category:ct,amount:am,dueDate:dd,cadence:cd,status:"pending",paidDate:null});S.showExpF=false;save();render()}
+function addRev(){const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;save();render()}
+function addPay(revId){const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo)}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);save();render()}
+function markLoPaid(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:td()}:o);save();render()}
+function restoreLo(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);save();render()}
+function delLo(id){if(!confirm("Delete this LO obligation permanently?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);save();render()}
+function markExpPaid(id){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:td()}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null})}save();render()}
+function restoreExp(id){DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"pending",paidDate:null}:e);save();render()}
+function delExp(id){if(!confirm("Delete this expense permanently?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);save();render()}
+function genNext(id){const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});save();render()}
+function toggleRevType(id){DATA.rev=DATA.rev.map(r=>r.id===id?{...r,type:r.type==="expected"?"confirmed":"expected"}:r);save();render()}
+function delRev(id){if(!confirm("Delete this revenue entry and all its payouts?"))return;DATA.rev=DATA.rev.filter(r=>r.id!==id);save();render()}
+function markPayPaid(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"paid",paidDate:td()}:p)}:r);save();render()}
+function restorePay(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"pending",paidDate:null}:p)}:r);save();render()}
+function delPay(revId,pid){if(!confirm("Delete this payout?"))return;const rev=DATA.rev.find(r=>r.id===revId);const p=rev?.payouts?.find(p=>p.id===pid);if(p?.linkedLoId)DATA.lo=DATA.lo.filter(o=>o.id!==p.linkedLoId);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).filter(p=>p.id!==pid)}:r);save();render()}
+function openWire(revId){const r=DATA.rev.find(r=>r.id===revId);S.wireModal={revId,amount:String(r.amount),receivedDate:td()};render()}
+function undoWire(revId){if(!confirm("Undo wire received? This will reverse the cash on hand update."))return;const r=DATA.rev.find(r=>r.id===revId);if(!r)return;DATA.cash=Math.max(0,DATA.cash-rG(r));DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash+rG(r),next:DATA.cash,note:`Wire reversed: ${r.source}`},...DATA.cashLog];DATA.rev=DATA.rev.map(x=>x.id===revId?{...x,wireReceived:false,receivedDate:null,type:"confirmed"}:x);save();render()}
+function confirmWire(revId){const am=parseFloat(document.getElementById("wm_am")?.value);const dt=document.getElementById("wm_dt")?.value;if(isNaN(am))return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,type:"confirmed",wireReceived:true,receivedDate:dt,amount:am}:r);const nxt=DATA.cash+am;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:nxt,note:`Wire received: ${DATA.rev.find(r=>r.id===revId)?.source||""}`},...DATA.cashLog];DATA.cash=nxt;S.wireModal=null;save();render()}
+
+load();render();
+</script>
+</body>
+</html>
