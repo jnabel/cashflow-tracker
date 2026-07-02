@@ -28,8 +28,6 @@ button:hover{background:#f5f5f5}
 .bdk:hover{background:#333;color:#fff}
 .bgn{background:#059669;color:#fff;border-color:#059669}
 .bgn:hover{background:#047857;color:#fff}
-.brd{background:#dc2626;color:#fff;border-color:#dc2626}
-.brd:hover{background:#b91c1c;color:#fff}
 .bsm{padding:4px 10px;font-size:12px}
 .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
 .pg{background:#d1fae5;color:#065f46}
@@ -49,6 +47,7 @@ button:hover{background:#f5f5f5}
 .mvl{font-size:20px;font-weight:600}
 .alrt{border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:13px;border:1px solid}
 .ard{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+.abl{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
 .psub{background:#f8f9fa;padding:12px 16px}
 .sfrm{background:#fff;border:1px solid #e8e9eb;border-radius:8px;padding:12px;margin-top:8px}
 .frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
@@ -66,18 +65,40 @@ tfoot td{font-weight:600;border-top:1px solid #ddd;border-bottom:none;padding-to
 .clr{font-size:12px;color:#666;padding:3px 0;border-bottom:1px solid #f0f0f0}
 .fcd{border:1px solid #a7f3d0;background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:10px}
 .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
-.badge-new{background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:4px}
+.sync-bar{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 12px;background:#fff;border:1px solid #e8e9eb;border-radius:8px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#d1d5db}
+.sync-dot.live{background:#059669;animation:pulse 2s infinite}
+.sync-dot.saving{background:#f59e0b;animation:pulse .5s infinite}
+.sync-dot.error{background:#dc2626}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
 <div class="app"><div id="root"></div></div>
-<script>
-const SK="cft-v5";
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,onValue,set,get}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyAZQj3II3-xLcg-5Ycd_X_GssSH_nrb2-Q",
+  authDomain:"ahc-cashflow-tracker.firebaseapp.com",
+  databaseURL:"https://ahc-cashflow-tracker-default-rtdb.firebaseio.com",
+  projectId:"ahc-cashflow-tracker",
+  storageBucket:"ahc-cashflow-tracker.firebasestorage.app",
+  messagingSenderId:"1072183874762",
+  appId:"1:1072183874762:web:febbb47cd83c218e0bd033"
+};
+
+const fbApp=initializeApp(firebaseConfig);
+const db=getDatabase(fbApp);
+const DATA_REF=ref(db,"cashflow/data");
+
 const PC=["LO Commission","Referral","Processor Fee","Lead Owner","Override","Other"];
 const OR=new Set(["lo1","lo2","lo3","lo4","lo5","lo6","lo7"]);
 
 const fmt=n=>Number(n).toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
-const fmtK=n=>{const v=Number(n);return Math.abs(v)>=1000?`${v<0?"-":""}$${(Math.abs(v)/1000).toFixed(1)}k`:fmt(v)};
+const fmtK=n=>{const v=Number(n);return Math.abs(v)>=1000?`${v<0?"-":""}$${(Math.abs(v)/1000).toFixed(0)}k`:fmt(v)};
 const fmtD=s=>{if(!s)return"—";const d=new Date(s+"T00:00:00");return isNaN(d)?"—":d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})};
 const fmtS=s=>{if(!s)return"";const d=new Date(s+"T00:00:00");return isNaN(d)?"":d.toLocaleDateString("en-US",{month:"short",day:"numeric"})};
 const td=()=>new Date().toISOString().slice(0,10);
@@ -95,7 +116,7 @@ const SEED={
     {id:"lo4",loanOfficer:"AKIB",fileName:"Cutz Pech",amount:15854,dueDate:"2026-07-02",status:"pending",paidDate:null,category:"LO Commission",payee:"AKIB",linkedRevId:null},
     {id:"lo5",loanOfficer:"AKIB",fileName:"MD Rahman",amount:15900,dueDate:"2026-07-04",status:"pending",paidDate:null,category:"LO Commission",payee:"AKIB",linkedRevId:null},
     {id:"lo7",loanOfficer:"AKIB",fileName:"Jahan",amount:16065,dueDate:"2026-07-17",status:"pending",paidDate:null,category:"LO Commission",payee:"AKIB",linkedRevId:null},
-    {id:"lo8",loanOfficer:"Kristina",fileName:"Yax",amount:15885.14,dueDate:"2026-07-03",status:"pending",paidDate:null,category:"LO Commission",payee:"Kristina",linkedRevId:"rev3"},
+    {id:"lo8",loanOfficer:"Kristina",fileName:"Yax",amount:15885.14,dueDate:"2026-07-03",status:"paid",paidDate:"2026-07-01",category:"LO Commission",payee:"Kristina",linkedRevId:"rev3"},
     {id:"mr28f9jbjioze",loanOfficer:"Emily",fileName:"Danillo",amount:2519,dueDate:"2026-07-09",status:"pending",paidDate:null,linkedRevId:"rev4",linkedPayoutId:"mr28f9jbuop0l",category:"LO Commission",payee:"Emily"},
     {id:"mr28oz964ryj8",loanOfficer:"Akib",fileName:"Aryal",amount:20273,dueDate:"2026-07-27",status:"pending",paidDate:null,linkedRevId:"mr28m5j2qy2u4",linkedPayoutId:"mr28oz96omqgy",category:"LO Commission",payee:"Akib"},
     {id:"mr2947lkp6cds",loanOfficer:"Akib",fileName:"Azimur Rahman",amount:20273,dueDate:"2026-08-03",status:"pending",paidDate:null,linkedRevId:"mr29227411ubw",linkedPayoutId:"mr2947lkhyn9x",category:"LO Commission",payee:"Akib"},
@@ -116,7 +137,7 @@ const SEED={
   rev:[
     {id:"rev1",source:"Weinstien",amount:8690,type:"expected",date:"2026-07-22",wireReceived:false,receivedDate:null,payouts:[{id:"p1a",payee:"Alyssa",category:"Processor Fee",amount:695,dueDate:"2026-07-22",status:"pending",paidDate:null,linkedLoId:null}]},
     {id:"rev2",source:"John Oliver",amount:87000,type:"confirmed",date:"2026-06-22",wireReceived:true,receivedDate:"2026-06-23",payouts:[{id:"p2a",payee:"Alyssa",category:"Processor Fee",amount:2000,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null},{id:"p2b",payee:"Keith",category:"Referral",amount:8000,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null},{id:"p2c",payee:"Nick",category:"Lead Owner",amount:15000,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null},{id:"p2d",payee:"Jake",category:"Override",amount:2500,dueDate:"2026-06-22",status:"paid",paidDate:"2026-06-23",linkedLoId:null}]},
-    {id:"rev3",source:"Yax",amount:17935.14,type:"confirmed",date:"2026-06-22",wireReceived:true,receivedDate:"2026-06-22",payouts:[{id:"p3a",payee:"Kristina",category:"LO Commission",amount:15885.14,dueDate:"2026-07-03",status:"pending",paidDate:null,linkedLoId:"lo8"}]},
+    {id:"rev3",source:"Yax",amount:17935.14,type:"confirmed",date:"2026-06-22",wireReceived:true,receivedDate:"2026-06-22",payouts:[{id:"p3a",payee:"Kristina",category:"LO Commission",amount:15885.14,dueDate:"2026-07-03",status:"paid",paidDate:"2026-07-01",linkedLoId:"lo8"}]},
     {id:"rev4",source:"Danillo",amount:4580,type:"confirmed",date:"2026-06-30",wireReceived:true,receivedDate:"2026-06-30",payouts:[{id:"mr28f9jbuop0l",payee:"Emily",category:"LO Commission",amount:2519,dueDate:"2026-07-09",status:"pending",paidDate:null,linkedLoId:"mr28f9jbjioze"}]},
     {id:"rev5",source:"Rafael Bermudez",amount:30000,type:"expected",date:"2026-07-29",wireReceived:false,receivedDate:null,payouts:[{id:"p5a",payee:"Alyssa",category:"Processor Fee",amount:2000,dueDate:"2026-07-29",status:"pending",paidDate:null,linkedLoId:null},{id:"p5b",payee:"Maya",category:"Lead Owner",amount:5600,dueDate:"2026-07-29",status:"pending",paidDate:null,linkedLoId:null}]},
     {id:"rev6",source:"Dupont",amount:4000,type:"expected",date:"2026-06-25",wireReceived:true,receivedDate:"2026-06-25",payouts:[{id:"p6a",payee:"Alyssa",category:"Processor Fee",amount:695,dueDate:"2026-06-25",status:"pending",paidDate:null,linkedLoId:null},{id:"p6b",payee:"Randy",category:"LO Commission",amount:2700,dueDate:"2026-06-26",status:"paid",paidDate:"2026-07-01",linkedLoId:null}]},
@@ -140,16 +161,60 @@ const SEED={
   ],
 };
 
-let S={tab:"dashboard",dw:14,fcm:"all",expRev:null,wireModal:null,showExpF:false,showRevF:false,editLoId:null,editExpId:null,editRevId:null,editPayId:null,editPayRev:null,showCashLog:false,editCash:false,rCat:"All",rPay:"All",rSt:"All",rFl:"All",rFr:"",rTo:""};
+let S={tab:"dashboard",dw:14,fcm:"all",expRev:null,wireModal:null,showExpF:false,showRevF:false,editLoId:null,editExpId:null,editRevId:null,editPayId:null,editPayRev:null,showCashLog:false,editCash:false,rCat:"All",rPay:"All",rSt:"All",rFl:"All",rFr:"",rTo:"",syncStatus:"connecting",syncMsg:"Connecting...",lastSaved:null};
 let DATA={lo:[],exp:[],rev:[],cash:0,cashLog:[]};
+let saveTimer=null;
+let isInitialLoad=true;
 
-function save(){try{localStorage.setItem(SK,JSON.stringify(DATA))}catch(_){}}
-function load(){
+function setSyncStatus(status,msg){S.syncStatus=status;S.syncMsg=msg;renderSyncBar()}
+function renderSyncBar(){
+  const bar=document.getElementById("sync-bar");
+  if(!bar)return;
+  const colors={connecting:"#f59e0b",live:"#059669",saving:"#f59e0b",error:"#dc2626"};
+  bar.innerHTML=`<span class="sync-dot ${S.syncStatus}" style="background:${colors[S.syncStatus]||"#d1d5db"}"></span><span style="color:#555">${S.syncMsg}</span>`;
+}
+
+function saveToFirebase(){
+  clearTimeout(saveTimer);
+  setSyncStatus("saving","Saving...");
+  saveTimer=setTimeout(async()=>{
+    try{
+      await set(DATA_REF,JSON.parse(JSON.stringify(DATA)));
+      const t=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+      setSyncStatus("live",`All users synced · ${t}`);
+    }catch(e){
+      setSyncStatus("error","Save failed — check connection");
+      console.error(e);
+    }
+  },800);
+}
+
+async function initFirebase(){
+  setSyncStatus("connecting","Connecting to Firebase...");
   try{
-    const raw=localStorage.getItem(SK);
-    if(raw){const d=JSON.parse(raw);if(d.lo?.length){DATA=d;return;}}
-  }catch(_){}
-  DATA={lo:SEED.lo.map(o=>({...o})),exp:SEED.exp.map(e=>({...e})),rev:SEED.rev.map(r=>({...r,payouts:r.payouts.map(p=>({...p}))})),cash:SEED.cash,cashLog:[...SEED.cashLog]};
+    const snap=await get(DATA_REF);
+    if(snap.exists()){
+      DATA=snap.val();
+      setSyncStatus("live","Live — synced with all users");
+    } else {
+      DATA={lo:SEED.lo.map(o=>({...o})),exp:SEED.exp.map(e=>({...e})),rev:SEED.rev.map(r=>({...r,payouts:r.payouts.map(p=>({...p}))})),cash:SEED.cash,cashLog:[...SEED.cashLog]};
+      await set(DATA_REF,JSON.parse(JSON.stringify(DATA)));
+      setSyncStatus("live","Initialized with seed data");
+    }
+    onValue(DATA_REF,snap=>{
+      if(snap.exists()){
+        const fresh=snap.val();
+        DATA=fresh;
+        if(!isInitialLoad)render();
+      }
+      isInitialLoad=false;
+    });
+    render();
+  }catch(e){
+    setSyncStatus("error","Firebase connection failed");
+    DATA={lo:SEED.lo.map(o=>({...o})),exp:SEED.exp.map(e=>({...e})),rev:SEED.rev.map(r=>({...r,payouts:r.payouts.map(p=>({...p}))})),cash:SEED.cash,cashLog:[...SEED.cashLog]};
+    render();
+  }
 }
 
 function applyJSON(d){
@@ -162,12 +227,12 @@ function applyJSON(d){
   if(rev?.length)DATA.rev=rev;
   DATA.cash=cash;
   DATA.cashLog=d.cashLog||[];
-  save();render();
+  saveToFirebase();render();
 }
 
 function getExp(){return{lo:DATA.lo,exp:DATA.exp,rev:DATA.rev,cash:DATA.cash,cashLog:DATA.cashLog,exportedAt:new Date().toISOString()}}
 function doExport(){const uri="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(getExp(),null,2));const a=document.createElement("a");a.href=uri;a.download="cashflow-backup-"+td()+".json";document.body.appendChild(a);a.click();document.body.removeChild(a)}
-function doImport(){const inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{applyJSON(JSON.parse(ev.target.result));alert("Data restored successfully!")}catch(_){alert("Invalid file — please use a cashflow backup JSON.")}};r.readAsText(f)};inp.click()}
+function doImport(){const inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{applyJSON(JSON.parse(ev.target.result));alert("Data restored and synced to all users!")}catch(_){alert("Invalid file.")}};r.readAsText(f)};inp.click()}
 
 const rG=r=>Number(r.amount||0);
 const pP=r=>(r.payouts||[]).filter(p=>p.status==="paid").reduce((s,p)=>s+Number(p.amount||0),0);
@@ -205,11 +270,8 @@ function getFc(){
   const add=(date,amount,label)=>{if(!date)return;if(!map[date])map[date]={date,inflow:0,outflow:0,items:[]};map[date].items.push({label,amount});if(amount>0)map[date].inflow+=amount;else map[date].outflow+=Math.abs(amount)};
   const revs=S.fcm==="confirmed"?DATA.rev.filter(r=>r.type==="confirmed"||r.wireReceived):DATA.rev;
   revs.forEach(r=>{
-    if(r.wireReceived){
-      (r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));
-    } else {
-      add(r.date,rN(r),r.source);
-    }
+    if(r.wireReceived)(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));
+    else add(r.date,rN(r),r.source);
   });
   DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).forEach(o=>add(o.dueDate,-o.amount,o.fileName||o.loanOfficer));
   DATA.exp.filter(e=>e.status==="pending").forEach(e=>add(e.dueDate,-e.amount,e.name));
@@ -217,8 +279,6 @@ function getFc(){
   let bal=DATA.cash;
   return Object.values(map).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>{bal+=d.inflow-d.outflow;return{...d,balance:bal,sf:bal<0}});
 }
-
-function fmtK2(n){const v=Number(n);return Math.abs(v)>=1000?`${v<0?"-":""}$${(Math.abs(v)/1000).toFixed(0)}k`:fmt(v)}
 
 function fChart(data){
   if(!data||data.length<2)return`<div class="emp">Add revenue and expenses to see forecast.</div>`;
@@ -237,13 +297,12 @@ function fChart(data){
   let bars="",pts="";
   data.forEach((d,i)=>{
     const cx=xO(i);
-    const tipItems=d.items.map(it=>`${it.label}: ${it.amount>0?"+":""}${fmt(it.amount)}`).join("&#10;");
-    const tip=`${fmtS(d.date)} | Balance: ${fmt(d.balance)}&#10;${tipItems}`;
+    const tip=`${fmtS(d.date)} | Balance: ${fmt(d.balance)}\n${d.items.map(it=>`${it.label}: ${it.amount>0?"+":""}${fmt(it.amount)}`).join("\n")}`;
     if(d.inflow>0)bars+=`<rect x="${(cx-bW-1).toFixed(1)}" y="${Math.min(yO(d.inflow),zY).toFixed(1)}" width="${bW}" height="${Math.abs(yO(d.inflow)-zY).toFixed(1)}" fill="#059669" opacity=".8" rx="2"><title>${tip}</title></rect>`;
     if(d.outflow>0)bars+=`<rect x="${(cx+1).toFixed(1)}" y="${zY.toFixed(1)}" width="${bW}" height="${Math.abs(yO(-d.outflow)-zY).toFixed(1)}" fill="#dc2626" opacity=".8" rx="2"><title>${tip}</title></rect>`;
     pts+=`<circle cx="${cx.toFixed(1)}" cy="${yO(d.balance).toFixed(1)}" r="4" fill="${d.sf?"#dc2626":"#6366f1"}" stroke="#fff" stroke-width="1.5" style="cursor:pointer"><title>${tip}</title></circle>`;
   });
-  const tls=tks.map(t=>`<line x1="${PL}" x2="${W-PR}" y1="${yO(t).toFixed(1)}" y2="${yO(t).toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/><text x="${PL-5}" y="${(yO(t)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#9ca3af">${fmtK2(t)}</text>`).join("");
+  const tls=tks.map(t=>`<line x1="${PL}" x2="${W-PR}" y1="${yO(t).toFixed(1)}" y2="${yO(t).toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/><text x="${PL-5}" y="${(yO(t)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#9ca3af">${fmtK(t)}</text>`).join("");
   const xl=data.map((d,i)=>i%ev===0?`<text x="${xO(i).toFixed(1)}" y="${H-PB+14}" text-anchor="middle" font-size="10" fill="#9ca3af">${fmtS(d.date)}</text>`:"").join("");
   return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${tls}<line x1="${PL}" x2="${W-PR}" y1="${zY.toFixed(1)}" y2="${zY.toFixed(1)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3"/>${bars}<path d="${path}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts}${xl}<g transform="translate(${PL},${H-4})"><rect x="0" y="-8" width="10" height="10" fill="#059669" opacity=".8" rx="1"/><text x="13" y="2" font-size="10" fill="#6b7280">Inflow</text><rect x="52" y="-8" width="10" height="10" fill="#dc2626" opacity=".8" rx="1"/><text x="65" y="2" font-size="10" fill="#6b7280">Outflow</text><line x1="112" x2="124" y1="-2" y2="-2" stroke="#6366f1" stroke-width="2.5"/><circle cx="118" cy="-2" r="3" fill="#6366f1"/><text x="128" y="2" font-size="10" fill="#6b7280">Balance</text></g></svg>`;
 }
@@ -310,7 +369,7 @@ function render(){
     const fd=getFc();const hs=fd.some(d=>d.sf);
     const tI=fd.reduce((s,d)=>s+d.inflow,0),tO=fd.reduce((s,d)=>s+d.outflow,0);
     body=`
-    ${hs?`<div class="alrt ard">⚠ <b>Projected shortfall</b> — running balance dips below zero. Review timeline below.</div>`:""}
+    ${hs?`<div class="alrt ard">⚠ <b>Projected shortfall</b> — running balance dips below zero. Review the timeline below.</div>`:""}
     <div class="card">
       <div class="sh"><span style="font-weight:600">Cash Flow Forecast</span>
         <div style="display:flex;gap:4px;background:#f1f3f5;padding:3px;border-radius:8px">
@@ -318,7 +377,7 @@ function render(){
           <button onclick="S.fcm='confirmed';render()" class="tab${S.fcm==="confirmed"?" on":""}" style="padding:4px 10px;font-size:12px">Confirmed Only</button>
         </div>
       </div>
-      <p style="font-size:12px;color:#888;margin-bottom:10px">Hover over any bar or dot to see details.</p>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Hover over any bar or dot to see file details.</p>
       ${fChart(fd)}
       <div class="mgrid" style="margin-top:12px">
         <div class="met"><div class="mlb">Starting balance</div><div class="mvl">${fmt(DATA.cash)}</div></div>
@@ -336,7 +395,7 @@ function render(){
     const lt2=pLo.reduce((s,o)=>s+Number(o.amount||0),0);
     const rows=pLo.length===0?`<tr><td colspan="7" class="emp">No pending LO obligations.</td></tr>`:
       pLo.map(o=>{
-        if(S.editLoId===o.id) return`<tr style="background:#f8f9fa">
+        if(S.editLoId===o.id)return`<tr style="background:#f8f9fa">
           <td><input id="el_lo" value="${o.loanOfficer}" style="width:85px"/></td>
           <td><input id="el_fn" value="${o.fileName||""}" style="width:85px"/></td>
           <td>${cb(o.category)}</td>
@@ -372,7 +431,7 @@ function render(){
     const et=pExp.reduce((s,e)=>s+Number(e.amount||0),0);
     const rows=pExp.length===0?`<tr><td colspan="6" class="emp">No pending expenses.</td></tr>`:
       pExp.map(e=>{
-        if(S.editExpId===e.id) return`<tr style="background:#f8f9fa">
+        if(S.editExpId===e.id)return`<tr style="background:#f8f9fa">
           <td><input id="ee_nm" value="${e.name}" style="width:110px"/></td>
           <td><select id="ee_ct"><option value="payroll" ${e.category==="payroll"?"selected":""}>Payroll</option><option value="recurring" ${e.category==="recurring"?"selected":""}>Recurring</option></select></td>
           <td><select id="ee_cd"><option value="weekly" ${e.cadence==="weekly"?"selected":""}>Weekly</option><option value="monthly" ${e.cadence==="monthly"?"selected":""}>Monthly</option></select></td>
@@ -426,7 +485,7 @@ function render(){
 
     const revRows=aRev.length===0?`<tr><td colspan="7" class="emp">No active revenue entries.</td></tr>`:
       aRev.flatMap(r=>{
-        if(S.editRevId===r.id) return[`<tr style="background:#f8f9fa">
+        if(S.editRevId===r.id)return[`<tr style="background:#f8f9fa">
           <td colspan="2"><input id="er_sr" value="${r.source}" style="width:140px"/></td>
           <td></td>
           <td><input id="er_am" type="number" value="${r.amount}" style="width:100px;text-align:right"/></td>
@@ -434,14 +493,12 @@ function render(){
           <td><select id="er_tp"><option value="expected" ${r.type==="expected"?"selected":""}>Expected</option><option value="confirmed" ${r.type==="confirmed"?"selected":""}>Confirmed</option></select></td>
           <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditRev('${r.id}')">✓ Save</button><button class="bsm" onclick="S.editRevId=null;render()">✕</button></div></td>
         </tr>`];
-
         const pays=r.payouts||[];const pd=pP(r);const net=rN(r);
         const isEx=S.expRev===r.id;const pc=pays.filter(p=>p.status!=="paid").length;
         const badge=r.wireReceived?`<span class="pill pg">✓ Wire In</span>`:r.type==="confirmed"?`<span class="pill pb">Confirmed</span>`:`<span class="pill pa">Expected</span>`;
         const wireAction=r.wireReceived
           ?`<div style="font-size:11px;color:#059669;margin-top:3px;margin-left:14px">💲 Wire received ${fmtD(r.receivedDate)} <button class="bsm" onclick="event.stopPropagation();undoWire('${r.id}')" style="font-size:11px;color:#888;margin-left:4px;padding:1px 6px">↩ Undo</button></div>`
           :`<div style="margin-top:4px;margin-left:14px"><button class="bgn bsm" onclick="event.stopPropagation();openWire('${r.id}')">💲 Wire Received</button></div>`;
-
         const mainRow=`<tr style="${r.wireReceived?"background:#f0fdf4":""}">
           <td><button onclick="S.expRev=S.expRev==='${r.id}'?null:'${r.id}';render()" style="background:none;border:none;cursor:pointer;font-size:13px;font-family:inherit;text-align:left;padding:0;color:#1a1a1a;width:100%">
             ${isEx?"▾":"▸"} <b>${r.source}</b>${pays.length>0?` <span style="font-size:11px;color:#888">(${pc} pending)</span>`:""}
@@ -457,13 +514,11 @@ function render(){
             <button class="bsm" onclick="delRev('${r.id}')" style="color:#dc2626">✕</button>
           </div></td>
         </tr>`;
-
         if(!isEx)return[mainRow];
-
-        const payRows=pays.length===0?`<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet for this file.</div>`:
+        const payRows=pays.length===0?`<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet.</div>`:
           `<table style="margin-bottom:8px"><thead><tr><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Send by</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>`+
           pays.map(p=>{
-            if(S.editPayId===p.id&&S.editPayRev===r.id) return`<tr style="background:#fff">
+            if(S.editPayId===p.id&&S.editPayRev===r.id)return`<tr style="background:#fff">
               <td><input id="ep_py" value="${p.payee}" style="width:90px"/></td>
               <td><select id="ep_ct">${PC.map(c=>`<option value="${c}" ${p.category===c?"selected":""}>${c}</option>`).join("")}</select></td>
               <td><input id="ep_am" type="number" value="${p.amount}" style="width:90px;text-align:right"/></td>
@@ -473,20 +528,18 @@ function render(){
             </tr>`;
             const ip=p.status==="paid";
             return`<tr style="${ip?"opacity:.65":""}">
-              <td style="font-weight:500">${p.payee}</td>
-              <td>${cb(p.category)}</td>
+              <td style="font-weight:500">${p.payee}</td><td>${cb(p.category)}</td>
               <td style="text-align:right;color:#dc2626">−${fmt(p.amount)}</td>
               <td style="color:#888">${fmtD(p.dueDate)}</td>
               <td>${ip?`<span class="pill pg">✓ Sent ${fmtD(p.paidDate)}</span>`:`<span class="pill po">Pending</span>`}</td>
               <td style="text-align:right"><div class="acts">
                 <button class="bsm" onclick="S.editPayId='${p.id}';S.editPayRev='${r.id}';render()">✏</button>
                 ${!ip&&r.wireReceived?`<button class="bgn bsm" onclick="markPayPaid('${r.id}','${p.id}')">✓ Sent</button>`:""}
-                ${ip?`<button class="bsm" onclick="restorePay('${r.id}','${p.id}')">↺ Restore</button>`:""}
+                ${ip?`<button class="bsm" onclick="restorePay('${r.id}','${p.id}')">↺</button>`:""}
                 <button class="bsm" onclick="delPay('${r.id}','${p.id}')" style="color:#dc2626">✕</button>
               </div></td>
             </tr>`;
           }).join("")+`</tbody></table>`;
-
         const expRow=`<tr><td colspan="7" class="psub">
           <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">File-related payouts</div>
           ${payRows}
@@ -508,15 +561,13 @@ function render(){
             <button class="bdk bsm" onclick="addPay('${r.id}')">+ Add Payout</button>
           </div>
         </td></tr>`;
-
         return[mainRow,expRow];
       }).flat();
-
     const tG=aRev.reduce((s,r)=>s+rG(r),0),tPd=aRev.reduce((s,r)=>s+pP(r),0),tNt=aRev.reduce((s,r)=>s+rN(r),0);
     body=`<div class="card">
       <div class="sh"><span style="font-weight:600">Revenue</span><button class="${S.showRevF?"bsm":"bdk bsm"}" onclick="S.showRevF=!S.showRevF;render()">${S.showRevF?"✕ Cancel":"+ Add Revenue"}</button></div>
       ${arf}
-      <div style="font-size:12px;color:#888;margin-bottom:10px">Click ▸ to expand a file and see/add payouts. Click <b>Wire Received</b> when a wire lands — cash on hand updates automatically.</div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px">Click ▸ to expand a file. Click <b>Wire Received</b> when a wire lands — cash updates automatically.</div>
       <div style="overflow-x:auto"><table><thead><tr><th>Source</th><th style="text-align:right">Gross</th><th style="text-align:right">Payouts out</th><th style="text-align:right">Net remaining</th><th>Date</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
       <tbody>${revRows}</tbody>
       ${aRev.length?`<tfoot><tr><td style="color:#888;font-size:12px">Totals (${aRev.length} active files)</td><td style="text-align:right">${fmt(tG)}</td><td style="text-align:right;color:#dc2626">${tPd>0?`−${fmt(tPd)}`:"—"}</td><td style="text-align:right;color:#059669;font-weight:600">${fmt(tNt)}</td><td colspan="3"></td></tr></tfoot>`:""}
@@ -525,10 +576,10 @@ function render(){
   }
 
   else if(S.tab==="funded"){
-    const items=funded.length===0?`<div class="emp" style="padding:48px"><div style="font-size:32px;margin-bottom:8px;opacity:.3">✓</div>No fully funded files yet.<br><span style="font-size:12px">A file appears here once the wire is received and all payouts are marked sent.</span></div>`:
+    const items=funded.length===0?`<div class="emp" style="padding:48px">No fully funded files yet.</div>`:
       funded.map(r=>{const tot=r.payouts.reduce((s,p)=>s+Number(p.amount||0),0),net=rG(r)-tot;return`<div class="fcd"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div><div style="font-weight:600;font-size:15px">${r.source}</div><div style="font-size:12px;color:#059669;margin-top:2px">💲 Wire received ${fmtD(r.receivedDate)}</div></div><div style="text-align:right"><div style="font-size:11px;color:#888">Gross</div><div style="font-weight:600">${fmt(rG(r))}</div></div></div><div style="border-top:1px solid #a7f3d0;padding-top:10px">${r.payouts.map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><div style="display:flex;gap:6px;align-items:center">${p.payee} ${cb(p.category)}</div><div style="display:flex;gap:8px;align-items:center"><span style="color:#dc2626">−${fmt(p.amount)}</span><span class="pill pg">✓ Sent ${fmtD(p.paidDate)}</span></div></div>`).join("")}<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #a7f3d0;font-weight:600"><span>Net retained</span><span style="color:#059669">${fmt(net)}</span></div></div></div>`}).join("")+
-      `<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid #eee;font-size:13px"><span style="color:#888">Total net retained across all funded files</span><span style="font-weight:600;color:#059669">${fmt(funded.reduce((s,r)=>s+rG(r)-r.payouts.reduce((ps,p)=>ps+Number(p.amount||0),0),0))}</span></div>`;
-    body=`<div class="card"><div style="font-weight:600;margin-bottom:4px">✓ Funded Files <span style="font-size:13px;font-weight:400;color:#888">(${funded.length} complete)</span></div><div style="font-size:12px;color:#888;margin-bottom:14px">Wire received and all distributions sent. Fully settled.</div>${items}</div>`;
+      `<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid #eee;font-size:13px"><span style="color:#888">Total net retained</span><span style="font-weight:600;color:#059669">${fmt(funded.reduce((s,r)=>s+rG(r)-r.payouts.reduce((ps,p)=>ps+Number(p.amount||0),0),0))}</span></div>`;
+    body=`<div class="card"><div style="font-weight:600;margin-bottom:4px">✓ Funded Files <span style="font-size:13px;font-weight:400;color:#888">(${funded.length} complete)</span></div><div style="font-size:12px;color:#888;margin-bottom:14px">Wire received and all distributions sent.</div>${items}</div>`;
   }
 
   else if(S.tab==="report"){
@@ -554,26 +605,23 @@ function render(){
       <div class="met"><div class="mlb">Paid / Sent</div><div class="mvl" style="color:#059669">${fmt(rPd)}</div></div>
       <div class="met"><div class="mlb">Pending</div><div class="mvl" style="color:#d97706">${fmt(rT-rPd)}</div></div>
     </div>
-    ${bCA.length?`<div class="card"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">By Category</div>${bCA.map(([cat,tot])=>{const pct=rT>0?Math.round((tot/rT)*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${cb(cat)}</span><span style="font-weight:600">${fmt(tot)} <span style="color:#888;font-size:11px;font-weight:400">${pct}%</span></span></div><div class="bbg"><div class="bfg" style="width:${pct}%"></div></div></div>`}).join("")}</div>`:""}
+    ${bCA.length?`<div class="card">${bCA.map(([cat,tot])=>{const pct=rT>0?Math.round((tot/rT)*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${cb(cat)}</span><span style="font-weight:600">${fmt(tot)} <span style="color:#888;font-size:11px">${pct}%</span></span></div><div class="bbg"><div class="bfg" style="width:${pct}%"></div></div></div>`}).join("")}</div>`:""}
     <div class="card">
-      <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Filters</div>
       <div class="fgrid">
         <div><label class="lbl">Category</label><select onchange="S.rCat=this.value;render()">${["All",...PC].map(c=>`<option value="${c}" ${S.rCat===c?"selected":""}>${c}</option>`).join("")}</select></div>
         <div><label class="lbl">Payee</label><select onchange="S.rPay=this.value;render()">${pays.map(p=>`<option value="${p}" ${S.rPay===p?"selected":""}>${p}</option>`).join("")}</select></div>
-        <div><label class="lbl">Status</label><select onchange="S.rSt=this.value;render()"><option value="All">All</option><option value="paid" ${S.rSt==="paid"?"selected":""}>Paid / Sent</option><option value="pending" ${S.rSt==="pending"?"selected":""}>Pending</option></select></div>
+        <div><label class="lbl">Status</label><select onchange="S.rSt=this.value;render()"><option value="All">All</option><option value="paid" ${S.rSt==="paid"?"selected":""}>Paid</option><option value="pending" ${S.rSt==="pending"?"selected":""}>Pending</option></select></div>
         <div><label class="lbl">File</label><select onchange="S.rFl=this.value;render()">${files.map(f=>`<option value="${f}" ${S.rFl===f?"selected":""}>${f}</option>`).join("")}</select></div>
-        <div><label class="lbl">From date</label><input type="date" value="${S.rFr}" onchange="S.rFr=this.value;render()"/></div>
-        <div><label class="lbl">To date</label><input type="date" value="${S.rTo}" onchange="S.rTo=this.value;render()"/></div>
+        <div><label class="lbl">From</label><input type="date" value="${S.rFr}" onchange="S.rFr=this.value;render()"/></div>
+        <div><label class="lbl">To</label><input type="date" value="${S.rTo}" onchange="S.rTo=this.value;render()"/></div>
       </div>
-      <button onclick="S.rCat='All';S.rPay='All';S.rSt='All';S.rFl='All';S.rFr='';S.rTo='';render()" style="font-size:12px;background:none;border:none;color:#888;cursor:pointer;text-decoration:underline;padding:0;margin-top:4px">Clear all filters</button>
+      <button onclick="S.rCat='All';S.rPay='All';S.rSt='All';S.rFl='All';S.rFr='';S.rTo='';render()" style="font-size:12px;background:none;border:none;color:#888;cursor:pointer;text-decoration:underline;padding:0;margin-top:4px">Clear filters</button>
     </div>
-    <div class="card">
-      <div style="font-weight:600;margin-bottom:10px">${fil.length} Payout${fil.length!==1?"s":""}</div>
-      <div style="overflow-x:auto"><table><thead><tr><th>File</th><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Date</th><th>Status</th></tr></thead>
-      <tbody>${fil.length===0?`<tr><td colspan="6" class="emp">No payouts match the current filters.</td></tr>`:fil.map(p=>`<tr><td style="color:#888">${p.file}</td><td style="font-weight:500">${p.payee}</td><td>${cb(p.category)}</td><td style="text-align:right">${fmt(p.amount)}</td><td style="color:#888">${fmtD(p.date)}</td><td>${p.status==="paid"?`<span class="pill pg">✓ Paid</span>`:`<span class="pill po">Pending</span>`}</td></tr>`).join("")}</tbody>
-      ${fil.length?`<tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total</td><td style="text-align:right">${fmt(rT)}</td><td colspan="2"></td></tr></tfoot>`:""}
-      </table></div>
-    </div>`;
+    <div class="card"><div style="font-weight:600;margin-bottom:10px">${fil.length} Payouts</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>File</th><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Date</th><th>Status</th></tr></thead>
+    <tbody>${fil.length===0?`<tr><td colspan="6" class="emp">No payouts match.</td></tr>`:fil.map(p=>`<tr><td style="color:#888">${p.file}</td><td style="font-weight:500">${p.payee}</td><td>${cb(p.category)}</td><td style="text-align:right">${fmt(p.amount)}</td><td style="color:#888">${fmtD(p.date)}</td><td>${p.status==="paid"?`<span class="pill pg">✓ Paid</span>`:`<span class="pill po">Pending</span>`}</td></tr>`).join("")}</tbody>
+    ${fil.length?`<tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total</td><td style="text-align:right">${fmt(rT)}</td><td colspan="2"></td></tr></tfoot>`:""}
+    </table></div></div>`;
   }
 
   else if(S.tab==="archive"){
@@ -588,7 +636,7 @@ function render(){
 
   const wh=S.wireModal?`<div class="wov"><div class="wmd">
     <div style="font-weight:600;font-size:16px;margin-bottom:4px">💲 Wire Received</div>
-    <div style="font-size:13px;color:#888;margin-bottom:14px">Confirm the wire amount and date received. Cash on hand will update automatically.</div>
+    <div style="font-size:13px;color:#888;margin-bottom:14px">Confirm amount and date. Cash on hand updates automatically.</div>
     <div style="margin-bottom:10px"><label class="lbl">Wire amount received</label><input type="number" id="wm_am" value="${S.wireModal.amount}"/></div>
     <div style="margin-bottom:16px"><label class="lbl">Date received</label><input type="date" id="wm_dt" value="${S.wireModal.receivedDate}"/></div>
     <div style="display:flex;gap:8px"><button class="bgn" onclick="confirmWire('${S.wireModal.revId}')" style="flex:1">✓ Confirm Wire Received</button><button onclick="S.wireModal=null;render()">Cancel</button></div>
@@ -598,9 +646,10 @@ function render(){
   <div class="hdr">
     <div>
       <div class="hdr-title">Cash Flow & Obligations Tracker</div>
-      <div class="hdr-sub">Allied Home Capital — Live across LO obligations, expenses, and revenue.</div>
+      <div class="hdr-sub">Allied Home Capital · Live sync across all users</div>
     </div>
     <div class="hdr-acts">
+      <div class="sync-bar" id="sync-bar"><span class="sync-dot ${S.syncStatus}"></span><span>${S.syncMsg}</span></div>
       <button class="bsm" onclick="doImport()">⬆ Import</button>
       <button class="bdk bsm" onclick="doExport()">⬇ Export</button>
     </div>
@@ -609,39 +658,31 @@ function render(){
   ${body}${wh}`;
 }
 
-function saveCash(){const v=parseFloat(document.getElementById("ci")?.value);if(isNaN(v))return;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:v},...DATA.cashLog];DATA.cash=v;S.editCash=false;save();render()}
-function saveEditLo(id){const lo=document.getElementById("el_lo")?.value?.trim();const fn=document.getElementById("el_fn")?.value?.trim();const am=parseFloat(document.getElementById("el_am")?.value);const dd=document.getElementById("el_dd")?.value;if(!lo||!am||!dd)return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,loanOfficer:lo,fileName:fn,amount:am,dueDate:dd}:o);S.editLoId=null;save();render()}
-function saveEditExp(id){const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;save();render()}
-function saveEditRev(id){const sr=document.getElementById("er_sr")?.value?.trim();const am=parseFloat(document.getElementById("er_am")?.value);const dt=document.getElementById("er_dt")?.value;const tp=document.getElementById("er_tp")?.value;if(!sr||!am||!dt)return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,source:sr,amount:am,date:dt,type:tp}:r);S.editRevId=null;save();render()}
-function saveEditPay(revId,pid){const py=document.getElementById("ep_py")?.value?.trim();const ct=document.getElementById("ep_ct")?.value;const am=parseFloat(document.getElementById("ep_am")?.value);const dd=document.getElementById("ep_dd")?.value;if(!py||!am)return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,payee:py,category:ct,amount:am,dueDate:dd||p.dueDate}:p)}:r);S.editPayId=null;S.editPayRev=null;save();render()}
-function addExp(){const nm=document.getElementById("ef_nm")?.value?.trim();const ct=document.getElementById("ef_ct")?.value;const cd=document.getElementById("ef_cd")?.value;const am=parseFloat(document.getElementById("ef_am")?.value);const dd=document.getElementById("ef_dd")?.value;if(!nm||!am||!dd)return;DATA.exp.push({id:gid(),name:nm,category:ct,amount:am,dueDate:dd,cadence:cd,status:"pending",paidDate:null});S.showExpF=false;save();render()}
-function addRev(){const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;save();render()}
-function addPay(revId){const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo)}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);save();render()}
-function markLoPaid(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:td()}:o);save();render()}
-function restoreLo(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);save();render()}
-function delLo(id){if(!confirm("Delete this LO obligation permanently?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);save();render()}
-function markExpPaid(id){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:td()}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null})}save();render()}
-function restoreExp(id){DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"pending",paidDate:null}:e);save();render()}
-function delExp(id){if(!confirm("Delete this expense permanently?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);save();render()}
-function genNext(id){const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});save();render()}
-function toggleRevType(id){DATA.rev=DATA.rev.map(r=>r.id===id?{...r,type:r.type==="expected"?"confirmed":"expected"}:r);save();render()}
-function delRev(id){if(!confirm("Delete this revenue entry and all its payouts?"))return;DATA.rev=DATA.rev.filter(r=>r.id!==id);save();render()}
-function markPayPaid(revId,pid){
-  DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"paid",paidDate:td()}:p)}:r);
-  const rev=DATA.rev.find(r=>r.id===revId);
-  const payout=rev?.payouts?.find(p=>p.id===pid);
-  if(payout?.linkedLoId){
-    DATA.lo=DATA.lo.map(o=>o.id===payout.linkedLoId?{...o,status:"paid",paidDate:td()}:o);
-  }
-  save();render();
-}
-function restorePay(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"pending",paidDate:null}:p)}:r);save();render()}
-function delPay(revId,pid){if(!confirm("Delete this payout?"))return;const rev=DATA.rev.find(r=>r.id===revId);const p=rev?.payouts?.find(p=>p.id===pid);if(p?.linkedLoId)DATA.lo=DATA.lo.filter(o=>o.id!==p.linkedLoId);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).filter(p=>p.id!==pid)}:r);save();render()}
-function openWire(revId){const r=DATA.rev.find(r=>r.id===revId);S.wireModal={revId,amount:String(r.amount),receivedDate:td()};render()}
-function undoWire(revId){if(!confirm("Undo wire received? This will reverse the cash on hand update."))return;const r=DATA.rev.find(r=>r.id===revId);if(!r)return;DATA.cash=Math.max(0,DATA.cash-rG(r));DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash+rG(r),next:DATA.cash,note:`Wire reversed: ${r.source}`},...DATA.cashLog];DATA.rev=DATA.rev.map(x=>x.id===revId?{...x,wireReceived:false,receivedDate:null,type:"confirmed"}:x);save();render()}
-function confirmWire(revId){const am=parseFloat(document.getElementById("wm_am")?.value);const dt=document.getElementById("wm_dt")?.value;if(isNaN(am))return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,type:"confirmed",wireReceived:true,receivedDate:dt,amount:am}:r);const nxt=DATA.cash+am;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:nxt,note:`Wire received: ${DATA.rev.find(r=>r.id===revId)?.source||""}`},...DATA.cashLog];DATA.cash=nxt;S.wireModal=null;save();render()}
+window.saveCash=function(){const v=parseFloat(document.getElementById("ci")?.value);if(isNaN(v))return;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:v},...DATA.cashLog];DATA.cash=v;S.editCash=false;saveToFirebase();render()};
+window.saveEditLo=function(id){const lo=document.getElementById("el_lo")?.value?.trim();const fn=document.getElementById("el_fn")?.value?.trim();const am=parseFloat(document.getElementById("el_am")?.value);const dd=document.getElementById("el_dd")?.value;if(!lo||!am||!dd)return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,loanOfficer:lo,fileName:fn,amount:am,dueDate:dd}:o);S.editLoId=null;saveToFirebase();render()};
+window.saveEditExp=function(id){const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;saveToFirebase();render()};
+window.saveEditRev=function(id){const sr=document.getElementById("er_sr")?.value?.trim();const am=parseFloat(document.getElementById("er_am")?.value);const dt=document.getElementById("er_dt")?.value;const tp=document.getElementById("er_tp")?.value;if(!sr||!am||!dt)return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,source:sr,amount:am,date:dt,type:tp}:r);S.editRevId=null;saveToFirebase();render()};
+window.saveEditPay=function(revId,pid){const py=document.getElementById("ep_py")?.value?.trim();const ct=document.getElementById("ep_ct")?.value;const am=parseFloat(document.getElementById("ep_am")?.value);const dd=document.getElementById("ep_dd")?.value;if(!py||!am)return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,payee:py,category:ct,amount:am,dueDate:dd||p.dueDate}:p)}:r);S.editPayId=null;S.editPayRev=null;saveToFirebase();render()};
+window.addExp=function(){const nm=document.getElementById("ef_nm")?.value?.trim();const ct=document.getElementById("ef_ct")?.value;const cd=document.getElementById("ef_cd")?.value;const am=parseFloat(document.getElementById("ef_am")?.value);const dd=document.getElementById("ef_dd")?.value;if(!nm||!am||!dd)return;DATA.exp.push({id:gid(),name:nm,category:ct,amount:am,dueDate:dd,cadence:cd,status:"pending",paidDate:null});S.showExpF=false;saveToFirebase();render()};
+window.addRev=function(){const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;saveToFirebase();render()};
+window.addPay=function(revId){const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo)}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);saveToFirebase();render()};
+window.markLoPaid=function(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:td()}:o);saveToFirebase();render()};
+window.restoreLo=function(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);saveToFirebase();render()};
+window.delLo=function(id){if(!confirm("Delete this LO obligation?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);saveToFirebase();render()};
+window.markExpPaid=function(id){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:td()}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null})}saveToFirebase();render()};
+window.restoreExp=function(id){DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"pending",paidDate:null}:e);saveToFirebase();render()};
+window.delExp=function(id){if(!confirm("Delete this expense?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);saveToFirebase();render()};
+window.genNext=function(id){const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});saveToFirebase();render()};
+window.toggleRevType=function(id){DATA.rev=DATA.rev.map(r=>r.id===id?{...r,type:r.type==="expected"?"confirmed":"expected"}:r);saveToFirebase();render()};
+window.delRev=function(id){if(!confirm("Delete this revenue entry?"))return;DATA.rev=DATA.rev.filter(r=>r.id!==id);saveToFirebase();render()};
+window.markPayPaid=function(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"paid",paidDate:td()}:p)}:r);const rev=DATA.rev.find(r=>r.id===revId);const payout=rev?.payouts?.find(p=>p.id===pid);if(payout?.linkedLoId)DATA.lo=DATA.lo.map(o=>o.id===payout.linkedLoId?{...o,status:"paid",paidDate:td()}:o);saveToFirebase();render()};
+window.restorePay=function(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"pending",paidDate:null}:p)}:r);saveToFirebase();render()};
+window.delPay=function(revId,pid){if(!confirm("Delete this payout?"))return;const rev=DATA.rev.find(r=>r.id===revId);const p=rev?.payouts?.find(p=>p.id===pid);if(p?.linkedLoId)DATA.lo=DATA.lo.filter(o=>o.id!==p.linkedLoId);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).filter(p=>p.id!==pid)}:r);saveToFirebase();render()};
+window.openWire=function(revId){const r=DATA.rev.find(r=>r.id===revId);S.wireModal={revId,amount:String(r.amount),receivedDate:td()};render()};
+window.undoWire=function(revId){if(!confirm("Undo wire received? This will reverse the cash on hand update."))return;const r=DATA.rev.find(r=>r.id===revId);if(!r)return;const prev=DATA.cash;DATA.cash=Math.max(0,DATA.cash-rG(r));DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev,next:DATA.cash,note:`Wire reversed: ${r.source}`},...DATA.cashLog];DATA.rev=DATA.rev.map(x=>x.id===revId?{...x,wireReceived:false,receivedDate:null,type:"confirmed"}:x);saveToFirebase();render()};
+window.confirmWire=function(revId){const am=parseFloat(document.getElementById("wm_am")?.value);const dt=document.getElementById("wm_dt")?.value;if(isNaN(am))return;const src=DATA.rev.find(r=>r.id===revId)?.source||"";DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,type:"confirmed",wireReceived:true,receivedDate:dt,amount:am}:r);const nxt=DATA.cash+am;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:nxt,note:`Wire received: ${src}`},...DATA.cashLog];DATA.cash=nxt;S.wireModal=null;saveToFirebase();render()};
 
-load();render();
+initFirebase();
 </script>
 </body>
 </html>
