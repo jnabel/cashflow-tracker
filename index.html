@@ -626,7 +626,15 @@ function delExp(id){if(!confirm("Delete this expense permanently?"))return;DATA.
 function genNext(id){const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});save();render()}
 function toggleRevType(id){DATA.rev=DATA.rev.map(r=>r.id===id?{...r,type:r.type==="expected"?"confirmed":"expected"}:r);save();render()}
 function delRev(id){if(!confirm("Delete this revenue entry and all its payouts?"))return;DATA.rev=DATA.rev.filter(r=>r.id!==id);save();render()}
-function markPayPaid(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"paid",paidDate:td()}:p)}:r);save();render()}
+function markPayPaid(revId,pid){
+  DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"paid",paidDate:td()}:p)}:r);
+  const rev=DATA.rev.find(r=>r.id===revId);
+  const payout=rev?.payouts?.find(p=>p.id===pid);
+  if(payout?.linkedLoId){
+    DATA.lo=DATA.lo.map(o=>o.id===payout.linkedLoId?{...o,status:"paid",paidDate:td()}:o);
+  }
+  save();render();
+}
 function restorePay(revId,pid){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"pending",paidDate:null}:p)}:r);save();render()}
 function delPay(revId,pid){if(!confirm("Delete this payout?"))return;const rev=DATA.rev.find(r=>r.id===revId);const p=rev?.payouts?.find(p=>p.id===pid);if(p?.linkedLoId)DATA.lo=DATA.lo.filter(o=>o.id!==p.linkedLoId);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).filter(p=>p.id!==pid)}:r);save();render()}
 function openWire(revId){const r=DATA.rev.find(r=>r.id===revId);S.wireModal={revId,amount:String(r.amount),receivedDate:td()};render()}
