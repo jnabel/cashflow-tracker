@@ -132,7 +132,7 @@ function silentExport() {
     },null,2));
     const a = document.createElement("a");
     a.href=uri;
-    a.download="cashflow-autosave-"+td()+".json";
+    a.download="cashflow-autosave.json";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     renderSaveStatus();
   } catch(_) {}
