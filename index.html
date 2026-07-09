@@ -59,11 +59,12 @@ button:hover{background:#f5f5f5}
 .emp{text-align:center;color:#aaa;padding:28px;font-size:13px}
 tfoot td{font-weight:600;border-top:1px solid #ddd;border-bottom:none;padding-top:10px}
 .wov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999}
-.wmd{background:#fff;border-radius:14px;padding:22px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.wmd{background:#fff;border-radius:14px;padding:22px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .clog{max-height:160px;overflow-y:auto;margin-top:8px}
 .clr{font-size:12px;color:#666;padding:3px 0;border-bottom:1px solid #f0f0f0}
 .fcd{border:1px solid #a7f3d0;background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:10px}
 .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.auto-save-badge{font-size:11px;color:#059669;padding:3px 8px;background:#d1fae5;border-radius:20px;margin-left:8px}
 </style>
 </head>
 <body>
@@ -100,78 +101,101 @@ const catBadge = c => {
 // ─── State ────────────────────────────────────────────────────────────────────
 let S = {
   tab:"dashboard", dw:14, fcm:"all",
-  expRev:null, wireModal:null,
+  expRev:null, wireModal:null, paidModal:null,
   showExpF:false, showRevF:false,
   editLoId:null, editExpId:null, editRevId:null,
   editPayId:null, editPayRev:null,
-  showCashLog:false, editCash:false,
-  rCat:"All", rPay:"All", rSt:"All", rFl:"All", rFr:"", rTo:""
+  showCashLog:false, editCash:false, cashNote:"",
+  rCat:"All", rPay:"All", rSt:"All", rFl:"All", rFr:"", rTo:"",
+  lastSaved:null
 };
 
 let DATA = { lo:[], exp:[], rev:[], cash:0, cashLog:[] };
 
-// ─── Persistence ──────────────────────────────────────────────────────────────
-function save() {
+// ─── Persistence & Auto-export ────────────────────────────────────────────────
+let autoExportTimer = null;
+
+function save(triggerAutoExport=true) {
   try { localStorage.setItem(SK, JSON.stringify(DATA)); } catch(_) {}
+  if(triggerAutoExport) {
+    S.lastSaved = new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    clearTimeout(autoExportTimer);
+    autoExportTimer = setTimeout(()=>silentExport(), 2000);
+  }
+}
+
+function silentExport() {
+  try {
+    const uri = "data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify({
+      lo:DATA.lo, exp:DATA.exp, rev:DATA.rev, cash:DATA.cash, cashLog:DATA.cashLog,
+      exportedAt:new Date().toISOString()
+    },null,2));
+    const a = document.createElement("a");
+    a.href=uri;
+    a.download="cashflow-autosave-"+td()+".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    renderSaveStatus();
+  } catch(_) {}
+}
+
+function renderSaveStatus() {
+  const el = document.getElementById("save-status");
+  if(el && S.lastSaved) el.innerHTML = `<span class="auto-save-badge">✓ Auto-saved ${S.lastSaved}</span>`;
 }
 
 function load() {
   try {
     const raw = localStorage.getItem(SK);
-    if(raw) {
-      const d = JSON.parse(raw);
-      if(d.lo?.length) { DATA = d; return; }
-    }
+    if(raw) { const d=JSON.parse(raw); if(d.lo?.length){DATA=d;return;} }
   } catch(_) {}
-  // First run — empty state, prompt import
   DATA = { lo:[], exp:[], rev:[], cash:0, cashLog:[] };
 }
 
 // ─── Data validation ──────────────────────────────────────────────────────────
 function validateImport(d) {
   const errors = [];
-  const lo  = d.lo  || d.loObligations  || [];
-  const exp = d.exp || d.fixedExpenses   || [];
-  const rev = d.rev || d.revenue         || [];
+  const lo  = d.lo||d.loObligations||[];
+  const exp = d.exp||d.fixedExpenses||[];
+  const rev = d.rev||d.revenue||[];
   lo.forEach((o,i)  => { if(!o.id)errors.push(`LO[${i}] missing id`);  if(!o.dueDate)errors.push(`LO[${i}] missing dueDate`); });
   exp.forEach((e,i) => { if(!e.id)errors.push(`Exp[${i}] missing id`); if(!e.name)errors.push(`Exp[${i}] missing name`); });
   rev.forEach((r,i) => {
     if(!r.id)errors.push(`Rev[${i}] missing id`);
     if(!r.source)errors.push(`Rev[${i}] missing source`);
-    (r.payouts||[]).forEach((p,j) => { if(!p.id)errors.push(`Rev[${i}].payout[${j}] missing id`); });
+    (r.payouts||[]).forEach((p,j)=>{ if(!p.id)errors.push(`Rev[${i}].payout[${j}] missing id`); });
   });
   return errors;
 }
 
 function applyJSON(d) {
   const errors = validateImport(d);
-  if(errors.length) { alert("Import issues found:\n"+errors.join("\n")+"\n\nImporting anyway — please verify data."); }
-  const lo  = d.lo  || d.loObligations  || [];
-  const exp = d.exp || d.fixedExpenses   || [];
-  const rev = d.rev || d.revenue         || [];
-  const cash = d.cash ?? d.cashOnHand ?? 0;
+  if(errors.length) alert("Import issues:\n"+errors.join("\n")+"\n\nImporting anyway — please verify.");
+  const lo  = d.lo||d.loObligations||[];
+  const exp = d.exp||d.fixedExpenses||[];
+  const rev = d.rev||d.revenue||[];
   if(lo.length)  DATA.lo  = lo;
   if(exp.length) DATA.exp = exp;
   if(rev.length) DATA.rev = rev;
-  DATA.cash    = cash;
-  DATA.cashLog = d.cashLog || [];
-  save(); render();
+  DATA.cash    = d.cash??d.cashOnHand??0;
+  DATA.cashLog = d.cashLog||[];
+  save(false); render();
 }
 
 function doExport() {
   const uri = "data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify({
-    lo:DATA.lo, exp:DATA.exp, rev:DATA.rev, cash:DATA.cash, cashLog:DATA.cashLog, exportedAt:new Date().toISOString()
+    lo:DATA.lo, exp:DATA.exp, rev:DATA.rev, cash:DATA.cash, cashLog:DATA.cashLog,
+    exportedAt:new Date().toISOString()
   },null,2));
-  const a = document.createElement("a"); a.href=uri; a.download="cashflow-backup-"+td()+".json";
+  const a=document.createElement("a"); a.href=uri; a.download="cashflow-backup-"+td()+".json";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 function doImport() {
-  const inp = document.createElement("input"); inp.type="file"; inp.accept=".json";
-  inp.onchange = e => {
-    const f = e.target.files[0]; if(!f) return;
-    const r = new FileReader();
-    r.onload = ev => { try { applyJSON(JSON.parse(ev.target.result)); alert("Restored!"); } catch(_) { alert("Invalid file."); } };
+  const inp=document.createElement("input"); inp.type="file"; inp.accept=".json";
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{try{applyJSON(JSON.parse(ev.target.result));alert("Restored!");}catch(_){alert("Invalid file.");}};
     r.readAsText(f);
   };
   inp.click();
@@ -185,11 +209,10 @@ const revNet      = r => revGross(r)-(r.payouts||[]).reduce((s,p)=>s+Number(p.am
 const isFunded    = r => r.wireReceived&&(r.payouts||[]).length>0&&(r.payouts||[]).every(p=>p.status==="paid");
 
 // ─── Centralized linked LO sync ───────────────────────────────────────────────
-function syncLinkedLo(payout, status) {
+function syncLinkedLo(payout, status, paidDate) {
   if(!payout?.linkedLoId) return;
-  DATA.lo = DATA.lo.map(o => o.id===payout.linkedLoId ? {...o, status, paidDate:status==="paid"?td():null} : o);
+  DATA.lo = DATA.lo.map(o => o.id===payout.linkedLoId ? {...o,status,paidDate:status==="paid"?(paidDate||td()):null} : o);
 }
-
 function removeLinkedLo(payout) {
   if(!payout?.linkedLoId) return;
   DATA.lo = DATA.lo.filter(o => o.id!==payout.linkedLoId);
@@ -202,12 +225,12 @@ function calcNet() {
   const expNet   = DATA.rev.filter(r=>!r.wireReceived&&r.type==="expected").reduce((s,r)=>s+revNet(r),0);
   const fixedTot = DATA.exp.filter(e=>e.status==="pending").reduce((s,e)=>s+Number(e.amount||0),0);
   const loTot    = DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).reduce((s,o)=>s+Number(o.amount||0),0);
-  return { net:DATA.cash+confNet+expNet-pendPay-fixedTot-loTot, con:DATA.cash+confNet-pendPay-fixedTot-loTot, pendPay, confNet, expNet, fixedTot, loTot };
+  return {net:DATA.cash+confNet+expNet-pendPay-fixedTot-loTot,con:DATA.cash+confNet-pendPay-fixedTot-loTot,pendPay,confNet,expNet,fixedTot,loTot};
 }
 
 // ─── Due soon ─────────────────────────────────────────────────────────────────
 function getDue() {
-  const items = [];
+  const items=[];
   DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).forEach(o=>items.push({kind:"LO Obligation",name:`${o.fileName} (${o.loanOfficer})`,amount:o.amount,dueDate:o.dueDate}));
   DATA.exp.filter(e=>e.status==="pending").forEach(e=>items.push({kind:e.category==="payroll"?"Payroll":"Fixed Expense",name:e.name,amount:e.amount,dueDate:e.dueDate}));
   DATA.rev.filter(r=>r.wireReceived).forEach(r=>(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>items.push({kind:"File Payout",name:`${p.payee} (${r.source})`,amount:p.amount,dueDate:p.dueDate||td()})));
@@ -217,7 +240,7 @@ function getDue() {
 
 // ─── Payouts report data ──────────────────────────────────────────────────────
 function allPayouts() {
-  const rows = [];
+  const rows=[];
   DATA.rev.forEach(r=>(r.payouts||[]).forEach(p=>rows.push({id:p.id,file:r.source,payee:p.payee,category:p.category||"Other",amount:p.amount,status:p.status,date:p.paidDate||p.dueDate||r.date})));
   DATA.lo.filter(o=>!o.linkedRevId).forEach(o=>rows.push({id:o.id,file:o.fileName,payee:o.payee||o.loanOfficer,category:o.category||"LO Commission",amount:o.amount,status:o.status==="paid"?"paid":"pending",date:o.paidDate||o.dueDate}));
   return rows.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -225,75 +248,78 @@ function allPayouts() {
 
 // ─── Forecast data ────────────────────────────────────────────────────────────
 function getForecast() {
-  const map = {}; const t = td();
-  const add = (date,amount,label) => {
-    if(!date) return;
-    if(!map[date]) map[date]={date,inflow:0,outflow:0,items:[]};
+  const map={}; const t=td();
+  const add=(date,amount,label)=>{
+    if(!date)return;
+    if(!map[date])map[date]={date,inflow:0,outflow:0,items:[]};
     map[date].items.push({label,amount});
-    if(amount>0) map[date].inflow+=amount; else map[date].outflow+=Math.abs(amount);
+    if(amount>0)map[date].inflow+=amount; else map[date].outflow+=Math.abs(amount);
   };
-  const revs = S.fcm==="confirmed" ? DATA.rev.filter(r=>r.type==="confirmed"||r.wireReceived) : DATA.rev;
-  revs.forEach(r => {
-    if(r.wireReceived) (r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));
-    else add(r.date, revNet(r), r.source);
+  const revs=S.fcm==="confirmed"?DATA.rev.filter(r=>r.type==="confirmed"||r.wireReceived):DATA.rev;
+  revs.forEach(r=>{
+    if(r.wireReceived)(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));
+    else add(r.date,revNet(r),r.source);
   });
   DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).forEach(o=>add(o.dueDate,-o.amount,o.fileName||o.loanOfficer));
   DATA.exp.filter(e=>e.status==="pending").forEach(e=>add(e.dueDate,-e.amount,e.name));
-  if(!map[t]) map[t]={date:t,inflow:0,outflow:0,items:[]};
-  let bal = DATA.cash;
+  if(!map[t])map[t]={date:t,inflow:0,outflow:0,items:[]};
+  let bal=DATA.cash;
   return Object.values(map).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>{bal+=d.inflow-d.outflow;return{...d,balance:bal,sf:bal<0};});
 }
 
 // ─── Forecast chart ───────────────────────────────────────────────────────────
 function forecastChart(data) {
-  if(!data||data.length<2) return `<div class="emp">Add revenue and expenses to see forecast.</div>`;
+  if(!data||data.length<2)return`<div class="emp">Add revenue and expenses to see forecast.</div>`;
   const W=700,H=240,PL=60,PR=12,PT=12,PB=38,cW=W-PL-PR,cH=H-PT-PB;
-  const av = data.flatMap(d=>[d.balance,d.inflow,-d.outflow]);
-  const mn=Math.min(0,...av), mx=Math.max(0,...av), rng=mx-mn||1;
-  const mg = Math.pow(10,Math.floor(Math.log10(rng/5)));
-  const nc = [1,2,5,10].map(f=>f*mg).find(f=>f>=rng/5)||mg*10;
-  const yMn=Math.floor(mn/nc)*nc, yMx=Math.ceil(mx/nc)*nc, yR=yMx-yMn||1;
-  const tks=[]; for(let v=yMn;v<=yMx+nc*0.01;v+=nc) tks.push(Math.round(v*1e6)/1e6);
-  const xO = i => PL+(i/Math.max(data.length-1,1))*cW;
-  const yO = v => PT+cH-((v-yMn)/yR)*cH;
-  const zY = yO(0);
-  const st=cW/Math.max(data.length,1), bW=Math.max(3,Math.min(16,st*0.28));
-  const path = data.map((d,i)=>`${i===0?"M":"L"}${xO(i).toFixed(1)},${yO(d.balance).toFixed(1)}`).join(" ");
-  const ev = Math.ceil(data.length/8);
+  const av=data.flatMap(d=>[d.balance,d.inflow,-d.outflow]);
+  const mn=Math.min(0,...av),mx=Math.max(0,...av),rng=mx-mn||1;
+  const mg=Math.pow(10,Math.floor(Math.log10(rng/5)));
+  const nc=[1,2,5,10].map(f=>f*mg).find(f=>f>=rng/5)||mg*10;
+  const yMn=Math.floor(mn/nc)*nc,yMx=Math.ceil(mx/nc)*nc,yR=yMx-yMn||1;
+  const tks=[]; for(let v=yMn;v<=yMx+nc*0.01;v+=nc)tks.push(Math.round(v*1e6)/1e6);
+  const xO=i=>PL+(i/Math.max(data.length-1,1))*cW;
+  const yO=v=>PT+cH-((v-yMn)/yR)*cH;
+  const zY=yO(0); const st=cW/Math.max(data.length,1),bW=Math.max(3,Math.min(16,st*0.28));
+  const path=data.map((d,i)=>`${i===0?"M":"L"}${xO(i).toFixed(1)},${yO(d.balance).toFixed(1)}`).join(" ");
+  const ev=Math.ceil(data.length/8);
   let bars="",pts="";
   data.forEach((d,i)=>{
     const cx=xO(i);
     const tip=`${fmtS(d.date)} | Balance: ${fmt(d.balance)}\n${d.items.map(it=>`${it.label}: ${it.amount>0?"+":""}${fmt(it.amount)}`).join("\n")}`;
-    if(d.inflow>0)  bars+=`<rect x="${(cx-bW-1).toFixed(1)}" y="${Math.min(yO(d.inflow),zY).toFixed(1)}" width="${bW}" height="${Math.abs(yO(d.inflow)-zY).toFixed(1)}" fill="#059669" opacity=".8" rx="2"><title>${tip}</title></rect>`;
-    if(d.outflow>0) bars+=`<rect x="${(cx+1).toFixed(1)}" y="${zY.toFixed(1)}" width="${bW}" height="${Math.abs(yO(-d.outflow)-zY).toFixed(1)}" fill="#dc2626" opacity=".8" rx="2"><title>${tip}</title></rect>`;
+    if(d.inflow>0) bars+=`<rect x="${(cx-bW-1).toFixed(1)}" y="${Math.min(yO(d.inflow),zY).toFixed(1)}" width="${bW}" height="${Math.abs(yO(d.inflow)-zY).toFixed(1)}" fill="#059669" opacity=".8" rx="2"><title>${tip}</title></rect>`;
+    if(d.outflow>0)bars+=`<rect x="${(cx+1).toFixed(1)}" y="${zY.toFixed(1)}" width="${bW}" height="${Math.abs(yO(-d.outflow)-zY).toFixed(1)}" fill="#dc2626" opacity=".8" rx="2"><title>${tip}</title></rect>`;
     pts+=`<circle cx="${cx.toFixed(1)}" cy="${yO(d.balance).toFixed(1)}" r="4" fill="${d.sf?"#dc2626":"#6366f1"}" stroke="#fff" stroke-width="1.5"><title>${tip}</title></circle>`;
   });
-  const tls = tks.map(t=>`<line x1="${PL}" x2="${W-PR}" y1="${yO(t).toFixed(1)}" y2="${yO(t).toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/><text x="${PL-5}" y="${(yO(t)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#9ca3af">${fmtK(t)}</text>`).join("");
-  const xl  = data.map((d,i)=>i%ev===0?`<text x="${xO(i).toFixed(1)}" y="${H-PB+14}" text-anchor="middle" font-size="10" fill="#9ca3af">${fmtS(d.date)}</text>`:"").join("");
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${tls}<line x1="${PL}" x2="${W-PR}" y1="${zY.toFixed(1)}" y2="${zY.toFixed(1)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3"/>${bars}<path d="${path}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts}${xl}<g transform="translate(${PL},${H-4})"><rect x="0" y="-8" width="10" height="10" fill="#059669" opacity=".8" rx="1"/><text x="13" y="2" font-size="10" fill="#6b7280">Inflow</text><rect x="52" y="-8" width="10" height="10" fill="#dc2626" opacity=".8" rx="1"/><text x="65" y="2" font-size="10" fill="#6b7280">Outflow</text><line x1="112" x2="124" y1="-2" y2="-2" stroke="#6366f1" stroke-width="2.5"/><circle cx="118" cy="-2" r="3" fill="#6366f1"/><text x="128" y="2" font-size="10" fill="#6b7280">Balance</text></g></svg>`;
+  const tls=tks.map(t=>`<line x1="${PL}" x2="${W-PR}" y1="${yO(t).toFixed(1)}" y2="${yO(t).toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/><text x="${PL-5}" y="${(yO(t)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#9ca3af">${fmtK(t)}</text>`).join("");
+  const xl=data.map((d,i)=>i%ev===0?`<text x="${xO(i).toFixed(1)}" y="${H-PB+14}" text-anchor="middle" font-size="10" fill="#9ca3af">${fmtS(d.date)}</text>`:"").join("");
+  return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${tls}<line x1="${PL}" x2="${W-PR}" y1="${zY.toFixed(1)}" y2="${zY.toFixed(1)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3"/>${bars}<path d="${path}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts}${xl}<g transform="translate(${PL},${H-4})"><rect x="0" y="-8" width="10" height="10" fill="#059669" opacity=".8" rx="1"/><text x="13" y="2" font-size="10" fill="#6b7280">Inflow</text><rect x="52" y="-8" width="10" height="10" fill="#dc2626" opacity=".8" rx="1"/><text x="65" y="2" font-size="10" fill="#6b7280">Outflow</text><line x1="112" x2="124" y1="-2" y2="-2" stroke="#6366f1" stroke-width="2.5"/><circle cx="118" cy="-2" r="3" fill="#6366f1"/><text x="128" y="2" font-size="10" fill="#6b7280">Balance</text></g></svg>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB RENDERERS — each returns an HTML string
+// TAB RENDERERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function tabDashboard() {
-  const {net,con,pendPay,confNet,expNet,fixedTot,loTot} = calcNet();
-  const due   = getDue();
-  const outf  = due.reduce((s,i)=>s+Number(i.amount||0),0);
-  const inf   = DATA.cash+confNet+expNet;
-  const flag  = outf>(inf-pendPay);
-  const nc    = net>=0?"#059669":"#dc2626";
-  const dRows = due.length===0
-    ? `<tr><td colspan="4" class="emp">Nothing due in this window.</td></tr>`
-    : due.map(i=>`<tr><td style="color:#888">${i.kind}</td><td style="font-weight:500">${i.name}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td></tr>`).join("");
-  const logHtml = S.showCashLog&&DATA.cashLog.length
-    ? `<div class="clog">${DATA.cashLog.map(e=>{const df=e.next-e.prev;return`<div class="clr">${new Date(e.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}: ${fmt(e.prev)} → <b>${fmt(e.next)}</b> <span style="color:${df>=0?"#059669":"#dc2626"}">(${df>=0?"+":""}${fmt(df)})</span>${e.note?` · ${e.note}`:""}</div>`}).join("")}</div>`
-    : "";
-  const cashEl = S.editCash
-    ? `<span style="display:flex;align-items:center;gap:6px"><input type="number" id="ci" value="${DATA.cash}" style="width:130px;text-align:right"/><button class="bgn bsm" onclick="saveCash()">✓</button><button class="bsm" onclick="S.editCash=false;render()">✕</button></span>`
-    : `<span style="display:flex;align-items:center;gap:8px;font-weight:600">${fmt(DATA.cash)}<button class="bsm" onclick="S.editCash=true;render()" style="padding:2px 8px">✏</button></span>`;
-  return `
+  const {net,con,pendPay,confNet,expNet,fixedTot,loTot}=calcNet();
+  const due=getDue();
+  const outf=due.reduce((s,i)=>s+Number(i.amount||0),0);
+  const inf=DATA.cash+confNet+expNet;
+  const flag=outf>(inf-pendPay);
+  const nc=net>=0?"#059669":"#dc2626";
+  const dRows=due.length===0?`<tr><td colspan="4" class="emp">Nothing due in this window.</td></tr>`:due.map(i=>`<tr><td style="color:#888">${i.kind}</td><td style="font-weight:500">${i.name}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td></tr>`).join("");
+  const logHtml=S.showCashLog&&DATA.cashLog.length?`<div class="clog">${DATA.cashLog.map(e=>{const df=e.next-e.prev;return`<div class="clr">${new Date(e.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}: ${fmt(e.prev)} → <b>${fmt(e.next)}</b> <span style="color:${df>=0?"#059669":"#dc2626"}">(${df>=0?"+":""}${fmt(df)})</span>${e.note?` · <em>${e.note}</em>`:""}</div>`;}).join("")}</div>`:"";
+
+  // Enhancement #3: cash edit now includes note field
+  const cashEl=S.editCash
+    ?`<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <input type="number" id="ci" value="${DATA.cash}" style="width:130px;text-align:right"/>
+        <input type="text" id="cn" value="" placeholder="Note (optional)" style="width:160px"/>
+        <button class="bgn bsm" onclick="saveCash()">✓</button>
+        <button class="bsm" onclick="S.editCash=false;render()">✕</button>
+      </span>`
+    :`<span style="display:flex;align-items:center;gap:8px;font-weight:600">${fmt(DATA.cash)}<button class="bsm" onclick="S.editCash=true;render()" style="padding:2px 8px">✏</button></span>`;
+
+  return`
   ${flag?`<div class="alrt ard">⚠ <b>Shortfall risk in ${S.dw}d window</b> — obligations (${fmt(outf)}) exceed available funds by ${fmt(outf-(inf-pendPay))}.</div>`:""}
   <div class="card">
     <div class="sh"><span style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em">Net Position</span></div>
@@ -322,11 +348,11 @@ function tabDashboard() {
 }
 
 function tabForecast() {
-  const fd  = getForecast();
-  const hs  = fd.some(d=>d.sf);
-  const tIn = fd.reduce((s,d)=>s+d.inflow,0);
-  const tOt = fd.reduce((s,d)=>s+d.outflow,0);
-  return `
+  const fd=getForecast();
+  const hs=fd.some(d=>d.sf);
+  const tIn=fd.reduce((s,d)=>s+d.inflow,0);
+  const tOt=fd.reduce((s,d)=>s+d.outflow,0);
+  return`
   ${hs?`<div class="alrt ard">⚠ <b>Projected shortfall</b> — balance dips below zero.</div>`:""}
   <div class="card">
     <div class="sh"><span style="font-weight:600">Cash Flow Forecast</span>
@@ -355,11 +381,11 @@ function tabForecast() {
 }
 
 function tabLO() {
-  const pending = DATA.lo.filter(o=>o.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
-  const total   = pending.reduce((s,o)=>s+Number(o.amount||0),0);
-  const rows = pending.length===0 ? `<tr><td colspan="7" class="emp">No pending LO obligations.</td></tr>` :
-    pending.map(o => {
-      if(S.editLoId===o.id) return `<tr style="background:#f8f9fa">
+  const pending=DATA.lo.filter(o=>o.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const total=pending.reduce((s,o)=>s+Number(o.amount||0),0);
+  const rows=pending.length===0?`<tr><td colspan="7" class="emp">No pending LO obligations.</td></tr>`:
+    pending.map(o=>{
+      if(S.editLoId===o.id)return`<tr style="background:#f8f9fa">
         <td><input id="el_lo" value="${o.loanOfficer}" style="width:85px"/></td>
         <td><input id="el_fn" value="${o.fileName||""}" style="width:85px"/></td>
         <td>${catBadge(o.category)}</td>
@@ -368,7 +394,7 @@ function tabLO() {
         <td></td>
         <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditLo('${o.id}')">✓</button><button class="bsm" onclick="S.editLoId=null;render()">✕</button></div></td>
       </tr>`;
-      return `<tr>
+      return`<tr>
         <td style="font-weight:500">${o.loanOfficer}${o.linkedRevId?`<div style="font-size:11px;color:#4f46e5">🔗 linked</div>`:""}</td>
         <td style="color:#888">${o.fileName||"—"}</td>
         <td>${catBadge(o.category)}</td>
@@ -377,12 +403,12 @@ function tabLO() {
         <td><span class="pill ps">Pending</span></td>
         <td style="text-align:right"><div class="acts">
           ${OR.has(o.id)?`<button class="bsm" onclick="S.editLoId='${o.id}';render()">✏</button>`:""}
-          <button class="bgn bsm" onclick="markLoPaid('${o.id}')">✓ Paid</button>
+          <button class="bgn bsm" onclick="openPaidModal('lo','${o.id}','${o.loanOfficer} — ${o.fileName||""}')">✓ Paid</button>
           <button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button>
         </div></td>
       </tr>`;
     }).join("");
-  return `<div class="card">
+  return`<div class="card">
     <div class="sh"><div>
       <div style="font-weight:600">Variable LO Obligations</div>
       <div style="font-size:12px;color:#888;margin-top:2px">All pending obligations including linked revenue file obligations.</div>
@@ -395,11 +421,11 @@ function tabLO() {
 }
 
 function tabExpenses() {
-  const pending = DATA.exp.filter(e=>e.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
-  const total   = pending.reduce((s,e)=>s+Number(e.amount||0),0);
-  const rows = pending.length===0 ? `<tr><td colspan="6" class="emp">No pending expenses.</td></tr>` :
-    pending.map(e => {
-      if(S.editExpId===e.id) return `<tr style="background:#f8f9fa">
+  const pending=DATA.exp.filter(e=>e.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const total=pending.reduce((s,e)=>s+Number(e.amount||0),0);
+  const rows=pending.length===0?`<tr><td colspan="6" class="emp">No pending expenses.</td></tr>`:
+    pending.map(e=>{
+      if(S.editExpId===e.id)return`<tr style="background:#f8f9fa">
         <td><input id="ee_nm" value="${e.name}" style="width:110px"/></td>
         <td><select id="ee_ct"><option value="payroll" ${e.category==="payroll"?"selected":""}>Payroll</option><option value="recurring" ${e.category==="recurring"?"selected":""}>Recurring</option></select></td>
         <td><select id="ee_cd"><option value="weekly" ${e.cadence==="weekly"?"selected":""}>Weekly</option><option value="monthly" ${e.cadence==="monthly"?"selected":""}>Monthly</option></select></td>
@@ -407,7 +433,7 @@ function tabExpenses() {
         <td><input id="ee_dd" type="date" value="${e.dueDate}" style="width:130px"/></td>
         <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditExp('${e.id}')">✓</button><button class="bsm" onclick="S.editExpId=null;render()">✕</button></div></td>
       </tr>`;
-      return `<tr>
+      return`<tr>
         <td style="font-weight:500">${e.name}</td>
         <td style="color:#888">${e.category}</td>
         <td style="color:#888">${e.cadence}</td>
@@ -415,12 +441,12 @@ function tabExpenses() {
         <td>${dueChip(e.dueDate)}</td>
         <td style="text-align:right"><div class="acts">
           <button class="bsm" onclick="S.editExpId='${e.id}';render()">✏</button>
-          <button class="bgn bsm" onclick="markExpPaid('${e.id}')">✓ Paid</button>
+          <button class="bgn bsm" onclick="openPaidModal('exp','${e.id}','${e.name}')">✓ Paid</button>
           <button class="bsm" onclick="delExp('${e.id}')" style="color:#dc2626">✕</button>
         </div></td>
       </tr>`;
     }).join("");
-  const addForm = S.showExpF ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
+  const addForm=S.showExpF?`<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
     <div class="frow">
       <div><label class="lbl">Name</label><input id="ef_nm" placeholder="Expense name"/></div>
       <div><label class="lbl">Category</label><select id="ef_ct"><option value="payroll">Payroll</option><option value="recurring" selected>Recurring</option></select></div>
@@ -429,8 +455,8 @@ function tabExpenses() {
       <div><label class="lbl">Due date</label><input id="ef_dd" type="date" value="${td()}"/></div>
     </div>
     <button class="bgn bsm" onclick="addExp()">+ Add Expense</button>
-  </div>` : "";
-  return `<div class="card">
+  </div>`:"";
+  return`<div class="card">
     <div class="sh"><span style="font-weight:600">Fixed Monthly Expenses</span><button class="${S.showExpF?"bsm":"bdk bsm"}" onclick="S.showExpF=!S.showExpF;render()">${S.showExpF?"✕ Cancel":"+ Add Expense"}</button></div>
     ${addForm}
     <table><thead><tr><th>Name</th><th>Category</th><th>Cadence</th><th style="text-align:right">Amount</th><th>Due Date</th><th style="text-align:right">Actions</th></tr></thead>
@@ -441,9 +467,8 @@ function tabExpenses() {
 }
 
 function tabRevenue() {
-  const funded   = DATA.rev.filter(isFunded);
-  const activeRev = DATA.rev.filter(r=>!isFunded(r)).sort((a,b)=>a.date.localeCompare(b.date));
-  const addForm = S.showRevF ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
+  const activeRev=DATA.rev.filter(r=>!isFunded(r)).sort((a,b)=>a.date.localeCompare(b.date));
+  const addForm=S.showRevF?`<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
     <div class="frow">
       <div style="flex:2;min-width:140px"><label class="lbl">Source / file name</label><input id="rf_sr" placeholder="File name"/></div>
       <div><label class="lbl">Type</label><select id="rf_tp"><option value="expected">Expected</option><option value="confirmed">Confirmed</option></select></div>
@@ -451,10 +476,10 @@ function tabRevenue() {
       <div><label class="lbl">Date</label><input id="rf_dt" type="date" value="${td()}"/></div>
     </div>
     <button class="bgn bsm" onclick="addRev()">+ Add Revenue</button>
-  </div>` : "";
-  const revRows = activeRev.length===0 ? `<tr><td colspan="7" class="emp">No active revenue entries.</td></tr>` :
-    activeRev.flatMap(r => {
-      if(S.editRevId===r.id) return [`<tr style="background:#f8f9fa">
+  </div>`:"";
+  const revRows=activeRev.length===0?`<tr><td colspan="7" class="emp">No active revenue entries.</td></tr>`:
+    activeRev.flatMap(r=>{
+      if(S.editRevId===r.id)return[`<tr style="background:#f8f9fa">
         <td colspan="2"><input id="er_sr" value="${r.source}" style="width:140px"/></td>
         <td></td>
         <td><input id="er_am" type="number" value="${r.amount}" style="width:100px;text-align:right"/></td>
@@ -462,16 +487,13 @@ function tabRevenue() {
         <td><select id="er_tp"><option value="expected" ${r.type==="expected"?"selected":""}>Expected</option><option value="confirmed" ${r.type==="confirmed"?"selected":""}>Confirmed</option></select></td>
         <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditRev('${r.id}')">✓</button><button class="bsm" onclick="S.editRevId=null;render()">✕</button></div></td>
       </tr>`];
-      const pays  = r.payouts||[];
-      const pd    = payoutsPaid(r);
-      const net   = revNet(r);
-      const isEx  = S.expRev===r.id;
-      const pc    = pays.filter(p=>p.status!=="paid").length;
-      const badge = r.wireReceived ? `<span class="pill pg">✓ Wire In</span>` : r.type==="confirmed" ? `<span class="pill pb">Confirmed</span>` : `<span class="pill pa">Expected</span>`;
-      const wireAction = r.wireReceived
-        ? `<div style="font-size:11px;color:#059669;margin-top:3px;margin-left:14px">💲 Wire received ${fmtD(r.receivedDate)} <button class="bsm" onclick="event.stopPropagation();undoWire('${r.id}')" style="font-size:11px;color:#888;margin-left:4px;padding:1px 6px">↩ Undo</button></div>`
-        : `<div style="margin-top:4px;margin-left:14px"><button class="bgn bsm" onclick="event.stopPropagation();openWire('${r.id}')">💲 Wire Received</button></div>`;
-      const mainRow = `<tr style="${r.wireReceived?"background:#f0fdf4":""}">
+      const pays=r.payouts||[]; const pd=payoutsPaid(r); const net=revNet(r);
+      const isEx=S.expRev===r.id; const pc=pays.filter(p=>p.status!=="paid").length;
+      const badge=r.wireReceived?`<span class="pill pg">✓ Wire In</span>`:r.type==="confirmed"?`<span class="pill pb">Confirmed</span>`:`<span class="pill pa">Expected</span>`;
+      const wireAction=r.wireReceived
+        ?`<div style="font-size:11px;color:#059669;margin-top:3px;margin-left:14px">💲 Wire received ${fmtD(r.receivedDate)} <button class="bsm" onclick="event.stopPropagation();undoWire('${r.id}')" style="font-size:11px;color:#888;margin-left:4px;padding:1px 6px">↩ Undo</button></div>`
+        :`<div style="margin-top:4px;margin-left:14px"><button class="bgn bsm" onclick="event.stopPropagation();openWire('${r.id}')">💲 Wire Received</button></div>`;
+      const mainRow=`<tr style="${r.wireReceived?"background:#f0fdf4":""}">
         <td><button onclick="S.expRev=S.expRev==='${r.id}'?null:'${r.id}';render()" style="background:none;border:none;cursor:pointer;font-size:13px;font-family:inherit;text-align:left;padding:0;color:#1a1a1a;width:100%">
           ${isEx?"▾":"▸"} <b>${r.source}</b>${pays.length>0?` <span style="font-size:11px;color:#888">(${pc} pending)</span>`:""}
           ${wireAction}
@@ -486,11 +508,11 @@ function tabRevenue() {
           <button class="bsm" onclick="delRev('${r.id}')" style="color:#dc2626">✕</button>
         </div></td>
       </tr>`;
-      if(!isEx) return [mainRow];
-      const payRows = pays.length===0 ? `<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet.</div>` :
+      if(!isEx)return[mainRow];
+      const payRows=pays.length===0?`<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet.</div>`:
         `<table style="margin-bottom:8px"><thead><tr><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Send by</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>`+
-        pays.map(p => {
-          if(S.editPayId===p.id&&S.editPayRev===r.id) return `<tr style="background:#fff">
+        pays.map(p=>{
+          if(S.editPayId===p.id&&S.editPayRev===r.id)return`<tr style="background:#fff">
             <td><input id="ep_py" value="${p.payee}" style="width:90px"/></td>
             <td><select id="ep_ct">${PC.map(c=>`<option value="${c}" ${p.category===c?"selected":""}>${c}</option>`).join("")}</select></td>
             <td><input id="ep_am" type="number" value="${p.amount}" style="width:90px;text-align:right"/></td>
@@ -498,8 +520,8 @@ function tabRevenue() {
             <td></td>
             <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditPay('${r.id}','${p.id}')">✓</button><button class="bsm" onclick="S.editPayId=null;render()">✕</button></div></td>
           </tr>`;
-          const ip = p.status==="paid";
-          return `<tr style="${ip?"opacity:.65":""}">
+          const ip=p.status==="paid";
+          return`<tr style="${ip?"opacity:.65":""}">
             <td style="font-weight:500">${p.payee}</td>
             <td>${catBadge(p.category)}</td>
             <td style="text-align:right;color:#dc2626">−${fmt(p.amount)}</td>
@@ -513,7 +535,7 @@ function tabRevenue() {
             </div></td>
           </tr>`;
         }).join("")+`</tbody></table>`;
-      const expRow = `<tr><td colspan="7" class="psub">
+      const expRow=`<tr><td colspan="7" class="psub">
         <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">File-related payouts</div>
         ${payRows}
         <div class="sfrm">
@@ -534,12 +556,12 @@ function tabRevenue() {
           <button class="bdk bsm" onclick="addPay('${r.id}')">+ Add Payout</button>
         </div>
       </td></tr>`;
-      return [mainRow, expRow];
+      return[mainRow,expRow];
     }).flat();
-  const tG  = activeRev.reduce((s,r)=>s+revGross(r),0);
-  const tPd = activeRev.reduce((s,r)=>s+payoutsPaid(r),0);
-  const tNt = activeRev.reduce((s,r)=>s+revNet(r),0);
-  return `<div class="card">
+  const tG=activeRev.reduce((s,r)=>s+revGross(r),0);
+  const tPd=activeRev.reduce((s,r)=>s+payoutsPaid(r),0);
+  const tNt=activeRev.reduce((s,r)=>s+revNet(r),0);
+  return`<div class="card">
     <div class="sh"><span style="font-weight:600">Revenue</span><button class="${S.showRevF?"bsm":"bdk bsm"}" onclick="S.showRevF=!S.showRevF;render()">${S.showRevF?"✕ Cancel":"+ Add Revenue"}</button></div>
     ${addForm}
     <div style="font-size:12px;color:#888;margin-bottom:10px">Click ▸ to expand a file and manage payouts. Click <b>Wire Received</b> when funds land.</div>
@@ -551,12 +573,11 @@ function tabRevenue() {
 }
 
 function tabFunded() {
-  const funded = DATA.rev.filter(isFunded).sort((a,b)=>(b.receivedDate||"").localeCompare(a.receivedDate||""));
-  if(funded.length===0) return `<div class="card"><div class="emp" style="padding:48px">No fully funded files yet.<br><span style="font-size:12px">A file appears here once the wire is received and all payouts are marked sent.</span></div></div>`;
-  const items = funded.map(r => {
-    const tot = (r.payouts||[]).reduce((s,p)=>s+Number(p.amount||0),0);
-    const net = revGross(r)-tot;
-    return `<div class="fcd">
+  const funded=DATA.rev.filter(isFunded).sort((a,b)=>(b.receivedDate||"").localeCompare(a.receivedDate||""));
+  if(funded.length===0)return`<div class="card"><div class="emp" style="padding:48px">No fully funded files yet.<br><span style="font-size:12px">A file appears here once the wire is received and all payouts are marked sent.</span></div></div>`;
+  const items=funded.map(r=>{
+    const tot=(r.payouts||[]).reduce((s,p)=>s+Number(p.amount||0),0),net=revGross(r)-tot;
+    return`<div class="fcd">
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
         <div><div style="font-weight:600;font-size:15px">${r.source}</div><div style="font-size:12px;color:#059669;margin-top:2px">💲 Wire received ${fmtD(r.receivedDate)}</div></div>
         <div style="text-align:right"><div style="font-size:11px;color:#888">Gross</div><div style="font-weight:600">${fmt(revGross(r))}</div></div>
@@ -567,8 +588,8 @@ function tabFunded() {
       </div>
     </div>`;
   }).join("");
-  const totalNet = funded.reduce((s,r)=>s+revGross(r)-(r.payouts||[]).reduce((ps,p)=>ps+Number(p.amount||0),0),0);
-  return `<div class="card">
+  const totalNet=funded.reduce((s,r)=>s+revGross(r)-(r.payouts||[]).reduce((ps,p)=>ps+Number(p.amount||0),0),0);
+  return`<div class="card">
     <div style="font-weight:600;margin-bottom:4px">✓ Funded Files <span style="font-size:13px;font-weight:400;color:#888">(${funded.length} complete)</span></div>
     <div style="font-size:12px;color:#888;margin-bottom:14px">Wire received and all distributions sent.</div>
     ${items}
@@ -577,24 +598,24 @@ function tabFunded() {
 }
 
 function tabReport() {
-  const ap  = allPayouts();
-  const fil = ap.filter(p => {
-    if(S.rCat!=="All"&&p.category!==S.rCat) return false;
-    if(S.rPay!=="All"&&p.payee!==S.rPay)    return false;
-    if(S.rSt!=="All"&&p.status!==S.rSt)     return false;
-    if(S.rFl!=="All"&&p.file!==S.rFl)       return false;
-    if(S.rFr&&p.date&&p.date<S.rFr)         return false;
-    if(S.rTo&&p.date&&p.date>S.rTo)         return false;
+  const ap=allPayouts();
+  const fil=ap.filter(p=>{
+    if(S.rCat!=="All"&&p.category!==S.rCat)return false;
+    if(S.rPay!=="All"&&p.payee!==S.rPay)return false;
+    if(S.rSt!=="All"&&p.status!==S.rSt)return false;
+    if(S.rFl!=="All"&&p.file!==S.rFl)return false;
+    if(S.rFr&&p.date&&p.date<S.rFr)return false;
+    if(S.rTo&&p.date&&p.date>S.rTo)return false;
     return true;
   });
-  const rT   = fil.reduce((s,p)=>s+Number(p.amount||0),0);
-  const rPd  = fil.filter(p=>p.status==="paid").reduce((s,p)=>s+Number(p.amount||0),0);
-  const byCat = {};
-  fil.forEach(p=>{ if(!byCat[p.category])byCat[p.category]=0; byCat[p.category]+=Number(p.amount||0); });
-  const bCA  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  const pays  = ["All",...new Set(ap.map(p=>p.payee).filter(Boolean))];
-  const files = ["All",...new Set(ap.map(p=>p.file).filter(Boolean))];
-  return `
+  const rT=fil.reduce((s,p)=>s+Number(p.amount||0),0);
+  const rPd=fil.filter(p=>p.status==="paid").reduce((s,p)=>s+Number(p.amount||0),0);
+  const byCat={};
+  fil.forEach(p=>{if(!byCat[p.category])byCat[p.category]=0;byCat[p.category]+=Number(p.amount||0);});
+  const bCA=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const pays=["All",...new Set(ap.map(p=>p.payee).filter(Boolean))];
+  const files=["All",...new Set(ap.map(p=>p.file).filter(Boolean))];
+  return`
   <div class="mgrid">
     <div class="met"><div class="mlb">Total (filtered)</div><div class="mvl">${fmt(rT)}</div></div>
     <div class="met"><div class="mlb">Paid / Sent</div><div class="mvl" style="color:#059669">${fmt(rPd)}</div></div>
@@ -620,21 +641,36 @@ function tabReport() {
 }
 
 function tabArchive() {
-  const paidLo  = DATA.lo.filter(o=>o.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
-  const paidExp = DATA.exp.filter(e=>e.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
-  const loRows  = paidLo.length===0  ? `<tr><td colspan="6" class="emp">No paid LO obligations yet.</td></tr>`  : paidLo.map(o=>`<tr style="color:#888"><td>${o.loanOfficer}</td><td>${o.fileName||"—"}</td><td style="text-align:right">${fmt(o.amount)}</td><td>${fmtD(o.dueDate)}</td><td>${fmtD(o.paidDate)}</td><td style="text-align:right"><div class="acts"><button class="bsm" onclick="restoreLo('${o.id}')">↺</button><button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button></div></td></tr>`).join("");
-  const expRows = paidExp.length===0 ? `<tr><td colspan="6" class="emp">No paid expenses yet.</td></tr>` : paidExp.map(e=>`<tr style="color:#888"><td>${e.name}</td><td>${e.category}</td><td style="text-align:right">${fmt(e.amount)}</td><td>${fmtD(e.dueDate)}</td><td>${fmtD(e.paidDate)}</td><td style="text-align:right"><div class="acts">${(e.cadence==="weekly"||e.cadence==="monthly")?`<button class="bsm" onclick="genNext('${e.id}')">↻ Gen Next</button>`:""}<button class="bsm" onclick="restoreExp('${e.id}')">↺</button><button class="bsm" onclick="delExp('${e.id}')" style="color:#dc2626">✕</button></div></td></tr>`).join("");
-  return `
+  const paidLo=DATA.lo.filter(o=>o.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
+  const paidExp=DATA.exp.filter(e=>e.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
+  const loRows=paidLo.length===0?`<tr><td colspan="6" class="emp">No paid LO obligations yet.</td></tr>`:paidLo.map(o=>`<tr style="color:#888"><td>${o.loanOfficer}</td><td>${o.fileName||"—"}</td><td style="text-align:right">${fmt(o.amount)}</td><td>${fmtD(o.dueDate)}</td><td>${fmtD(o.paidDate)}</td><td style="text-align:right"><div class="acts"><button class="bsm" onclick="restoreLo('${o.id}')">↺</button><button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button></div></td></tr>`).join("");
+  const expRows=paidExp.length===0?`<tr><td colspan="6" class="emp">No paid expenses yet.</td></tr>`:paidExp.map(e=>`<tr style="color:#888"><td>${e.name}</td><td>${e.category}</td><td style="text-align:right">${fmt(e.amount)}</td><td>${fmtD(e.dueDate)}</td><td>${fmtD(e.paidDate)}</td><td style="text-align:right"><div class="acts">${(e.cadence==="weekly"||e.cadence==="monthly")?`<button class="bsm" onclick="genNext('${e.id}')">↻ Gen Next</button>`:""}<button class="bsm" onclick="restoreExp('${e.id}')">↺</button><button class="bsm" onclick="delExp('${e.id}')" style="color:#dc2626">✕</button></div></td></tr>`).join("");
+  return`
   <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid LO Obligations</div>
   <table><thead><tr><th>Loan Officer</th><th>File Name</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${loRows}</tbody></table></div>
   <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid Fixed Expenses</div>
   <table><thead><tr><th>Name</th><th>Category</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${expRows}</tbody></table></div>`;
 }
 
-// ─── Wire modal ───────────────────────────────────────────────────────────────
+// ─── Modals ───────────────────────────────────────────────────────────────────
+
+// Enhancement #2: Paid date modal for LO obligations and expenses
+function paidModal() {
+  if(!S.paidModal) return "";
+  return`<div class="wov"><div class="wmd">
+    <div style="font-weight:600;font-size:16px;margin-bottom:4px">✓ Mark as Paid</div>
+    <div style="font-size:13px;color:#888;margin-bottom:14px">${S.paidModal.label}</div>
+    <div style="margin-bottom:14px"><label class="lbl">Date paid</label><input type="date" id="pm_dt" value="${td()}"/></div>
+    <div style="display:flex;gap:8px">
+      <button class="bgn" onclick="confirmPaid()" style="flex:1">✓ Confirm Paid</button>
+      <button onclick="S.paidModal=null;render()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+
 function wireModal() {
   if(!S.wireModal) return "";
-  return `<div class="wov"><div class="wmd">
+  return`<div class="wov"><div class="wmd">
     <div style="font-weight:600;font-size:16px;margin-bottom:4px">💲 Wire Received</div>
     <div style="font-size:13px;color:#888;margin-bottom:14px">Confirm amount and date. Cash on hand updates automatically.</div>
     <div style="margin-bottom:10px"><label class="lbl">Wire amount</label><input type="number" id="wm_am" value="${S.wireModal.amount}"/></div>
@@ -643,9 +679,8 @@ function wireModal() {
   </div></div>`;
 }
 
-// ─── First run prompt ─────────────────────────────────────────────────────────
 function firstRunPrompt() {
-  return `<div class="card" style="text-align:center;padding:48px">
+  return`<div class="card" style="text-align:center;padding:48px">
     <div style="font-size:32px;margin-bottom:12px">📊</div>
     <div style="font-size:18px;font-weight:600;margin-bottom:8px">Welcome to the Cash Flow Tracker</div>
     <div style="font-size:13px;color:#888;margin-bottom:20px">No data found. Import your latest backup to get started.</div>
@@ -655,51 +690,71 @@ function firstRunPrompt() {
 
 // ─── Main render ──────────────────────────────────────────────────────────────
 function render() {
-  const root = document.getElementById("root");
-  if(!root) return;
-
-  const hasData = DATA.lo.length>0 || DATA.rev.length>0 || DATA.exp.length>0;
-  const funded  = DATA.rev.filter(isFunded);
-
-  const tabs = [
-    {id:"dashboard", l:"Dashboard"},
-    {id:"forecast",  l:"Forecast"},
-    {id:"lo",        l:"LO Obligations"},
-    {id:"expenses",  l:"Fixed Expenses"},
-    {id:"revenue",   l:"Revenue"},
-    {id:"funded",    l:`Funded Files${funded.length?` <span class="pill pg" style="font-size:10px">${funded.length}</span>`:""}`},
-    {id:"report",    l:"Payouts Report"},
-    {id:"archive",   l:"Archive"},
+  const root=document.getElementById("root"); if(!root)return;
+  const hasData=DATA.lo.length>0||DATA.rev.length>0||DATA.exp.length>0;
+  const funded=DATA.rev.filter(isFunded);
+  const tabs=[
+    {id:"dashboard",l:"Dashboard"},{id:"forecast",l:"Forecast"},
+    {id:"lo",l:"LO Obligations"},{id:"expenses",l:"Fixed Expenses"},
+    {id:"revenue",l:"Revenue"},
+    {id:"funded",l:`Funded Files${funded.length?` <span class="pill pg" style="font-size:10px">${funded.length}</span>`:""}`},
+    {id:"report",l:"Payouts Report"},{id:"archive",l:"Archive"},
   ];
-
-  const tabRenderers = {
-    dashboard: tabDashboard,
-    forecast:  tabForecast,
-    lo:        tabLO,
-    expenses:  tabExpenses,
-    revenue:   tabRevenue,
-    funded:    tabFunded,
-    report:    tabReport,
-    archive:   tabArchive,
-  };
-
-  const body = !hasData ? firstRunPrompt() : (tabRenderers[S.tab]?.() || "");
-
-  root.innerHTML = `
+  const tabRenderers={dashboard:tabDashboard,forecast:tabForecast,lo:tabLO,expenses:tabExpenses,revenue:tabRevenue,funded:tabFunded,report:tabReport,archive:tabArchive};
+  const body=!hasData?firstRunPrompt():(tabRenderers[S.tab]?.()||"");
+  root.innerHTML=`
   <div class="hdr">
     <div><div class="hdr-title">Cash Flow & Obligations Tracker</div><div class="hdr-sub">Allied Home Capital · Live across LO obligations, expenses, and revenue.</div></div>
     <div class="hdr-acts">
+      <span id="save-status"></span>
       <button class="bsm" onclick="doImport()">⬆ Import</button>
       <button class="bdk bsm" onclick="doExport()">⬇ Export</button>
     </div>
   </div>
   <div class="tabs">${tabs.map(t=>`<button class="tab${S.tab===t.id?" on":""}" onclick="S.tab='${t.id}';render()">${t.l}</button>`).join("")}</div>
   ${body}
-  ${wireModal()}`;
+  ${wireModal()}
+  ${paidModal()}`;
+  renderSaveStatus();
 }
 
 // ─── Action handlers ──────────────────────────────────────────────────────────
-function saveCash(){const v=parseFloat(document.getElementById("ci")?.value);if(isNaN(v))return;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:v},...DATA.cashLog];DATA.cash=v;S.editCash=false;save();render();}
+
+// Enhancement #3: cash save now includes note
+function saveCash(){
+  const v=parseFloat(document.getElementById("ci")?.value);
+  if(isNaN(v))return;
+  const note=document.getElementById("cn")?.value?.trim()||"";
+  DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:v,note},...DATA.cashLog];
+  DATA.cash=v; S.editCash=false;
+  save(); render();
+}
+
+// Enhancement #2: open paid modal for LO and expenses
+function openPaidModal(type,id,label){
+  S.paidModal={type,id,label};
+  render();
+}
+
+function confirmPaid(){
+  if(!S.paidModal)return;
+  const dt=document.getElementById("pm_dt")?.value||td();
+  const {type,id}=S.paidModal;
+  if(type==="lo"){
+    DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:dt}:o);
+  } else if(type==="exp"){
+    const t=DATA.exp.find(e=>e.id===id);
+    DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:dt}:e);
+    if(t?.cadence){
+      const n=ai(t.dueDate,t.cadence);
+      if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))
+        DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});
+    }
+  }
+  S.paidModal=null;
+  save(); render();
+}
+
 function saveEditLo(id){const lo=document.getElementById("el_lo")?.value?.trim();const fn=document.getElementById("el_fn")?.value?.trim();const am=parseFloat(document.getElementById("el_am")?.value);const dd=document.getElementById("el_dd")?.value;if(!lo||!am||!dd)return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,loanOfficer:lo,fileName:fn,amount:am,dueDate:dd}:o);S.editLoId=null;save();render();}
 function saveEditExp(id){const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;save();render();}
 function saveEditRev(id){const sr=document.getElementById("er_sr")?.value?.trim();const am=parseFloat(document.getElementById("er_am")?.value);const dt=document.getElementById("er_dt")?.value;const tp=document.getElementById("er_tp")?.value;if(!sr||!am||!dt)return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,source:sr,amount:am,date:dt,type:tp}:r);S.editRevId=null;save();render();}
@@ -707,10 +762,8 @@ function saveEditPay(revId,pid){const py=document.getElementById("ep_py")?.value
 function addExp(){const nm=document.getElementById("ef_nm")?.value?.trim();const ct=document.getElementById("ef_ct")?.value;const cd=document.getElementById("ef_cd")?.value;const am=parseFloat(document.getElementById("ef_am")?.value);const dd=document.getElementById("ef_dd")?.value;if(!nm||!am||!dd)return;DATA.exp.push({id:gid(),name:nm,category:ct,amount:am,dueDate:dd,cadence:cd,status:"pending",paidDate:null});S.showExpF=false;save();render();}
 function addRev(){const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;save();render();}
 function addPay(revId){const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo);}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);save();render();}
-function markLoPaid(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:td()}:o);save();render();}
 function restoreLo(id){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);save();render();}
 function delLo(id){if(!confirm("Delete this LO obligation?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);save();render();}
-function markExpPaid(id){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:td()}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});}save();render();}
 function restoreExp(id){DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"pending",paidDate:null}:e);save();render();}
 function delExp(id){if(!confirm("Delete this expense?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);save();render();}
 function genNext(id){const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});save();render();}
@@ -753,8 +806,7 @@ function confirmWire(revId){
   DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,type:"confirmed",wireReceived:true,receivedDate:dt,amount:am}:r);
   const nxt=DATA.cash+am;
   DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:nxt,note:`Wire received: ${src}`},...DATA.cashLog];
-  DATA.cash=nxt;
-  S.wireModal=null;
+  DATA.cash=nxt; S.wireModal=null;
   save();render();
 }
 
