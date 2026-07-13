@@ -329,7 +329,7 @@ function getForecast() {
   const map={}; const t=td();
   const add=(date,amount,label)=>{if(!date)return;if(!map[date])map[date]={date,inflow:0,outflow:0,items:[]};map[date].items.push({label,amount});if(amount>0)map[date].inflow+=amount;else map[date].outflow+=Math.abs(amount);};
   const revs=S.fcm==="confirmed"?DATA.rev.filter(r=>r.type==="confirmed"||r.wireReceived):DATA.rev;
-  revs.forEach(r=>{if(r.wireReceived)(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));else add(r.date,revNet(r),r.source);});
+  revs.forEach(r=>{if(r.wireReceived){(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||t,-p.amount,`${p.payee} (${r.source})`));}else{add(r.date,revGross(r),r.source);(r.payouts||[]).filter(p=>p.status!=="paid").forEach(p=>add(p.dueDate||r.date,-p.amount,`${p.payee} (${r.source})`));}});
   DATA.lo.filter(o=>o.status==="pending"&&!o.linkedRevId).forEach(o=>add(o.dueDate,-o.amount,o.fileName||o.loanOfficer));
   DATA.exp.filter(e=>e.status==="pending").forEach(e=>add(e.dueDate,-e.amount,e.name));
   if(!map[t])map[t]={date:t,inflow:0,outflow:0,items:[]};
