@@ -290,6 +290,7 @@ const payoutsPaid = r => (r.payouts||[]).filter(p=>p.status==="paid").reduce((s,
 const payoutsPend = r => (r.payouts||[]).filter(p=>p.status!=="paid").reduce((s,p)=>s+Number(p.amount||0),0);
 const revNet      = r => revGross(r)-(r.payouts||[]).reduce((s,p)=>s+Number(p.amount||0),0);
 const isFunded    = r => r.wireReceived&&(r.payouts||[]).length>0&&(r.payouts||[]).every(p=>p.status==="paid");
+const isPartClosed = r => r.wireReceived&&(r.payouts||[]).length>0&&(r.payouts||[]).filter(p=>p.status!=="paid").length===1;
 
 function syncLinkedLo(payout, status, paidDate) {
   if(!payout?.linkedLoId) return;
@@ -585,6 +586,43 @@ function tabPnl() {
   </div>`;
 }
 
+// ─── Awaiting Final Payout (Partially Closed files) ──────────────────────────
+function getAwaitingFinal() {
+  const items=[];
+  DATA.rev.filter(r=>r.wireReceived).forEach(r=>{
+    const pending=(r.payouts||[]).filter(p=>p.status!=="paid");
+    if(pending.length===1){
+      const p=pending[0];
+      items.push({revId:r.id,payoutId:p.id,payee:p.payee,file:r.source,amount:p.amount,dueDate:p.dueDate,category:p.category});
+    }
+  });
+  return items.sort((a,b)=>a.payee.localeCompare(b.payee)||(a.dueDate||"").localeCompare(b.dueDate||""));
+}
+
+function awaitingFinalSection() {
+  const items=getAwaitingFinal();
+  if(items.length===0)return"";
+  const byPayee={};
+  items.forEach(i=>{if(!byPayee[i.payee])byPayee[i.payee]=[];byPayee[i.payee].push(i);});
+  const grandTotal=items.reduce((s,i)=>s+Number(i.amount||0),0);
+  let rows="";
+  Object.entries(byPayee).forEach(([payee,list])=>{
+    const subtotal=list.reduce((s,i)=>s+Number(i.amount||0),0);
+    list.forEach(i=>{rows+=`<tr><td style="font-weight:500">${payee}</td><td style="color:#888">${i.file}</td><td>${catBadge(i.category)}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td><td><span class="pill po">Partially Closed</span></td><td style="text-align:right">${isAdmin()?`<button class="bgn bsm" onclick="markPayPaid('${i.revId}','${i.payoutId}')">✓ Paid</button>`:""}</td></tr>`;});
+    rows+=`<tr style="background:#f8f9fa"><td colspan="3" style="font-size:12px;color:#888">Subtotal — ${payee}</td><td style="text-align:right;font-weight:600">${fmt(subtotal)}</td><td colspan="3"></td></tr>`;
+  });
+  return`<div class="card">
+    <div class="sh"><div>
+      <div style="font-weight:600">Awaiting Final Payout <span style="font-size:12px;font-weight:400;color:#888">(Partially Closed)</span></div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Funded files with exactly one payout still outstanding. Mark paid here once settled — the file moves to Funded Files automatically.</div>
+    </div></div>
+    <table><thead><tr><th>Payee</th><th>File</th><th>Category</th><th style="text-align:right">Amount</th><th>Due</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total outstanding (all payees)</td><td style="text-align:right">${fmt(grandTotal)}</td><td colspan="3"></td></tr></tfoot>
+    </table>
+  </div>`;
+}
+
 function tabLO() {
   const pending=DATA.lo.filter(o=>o.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
   const total=pending.reduce((s,o)=>s+Number(o.amount||0),0);
@@ -607,13 +645,13 @@ function tabLO() {
         <td>${dueChip(o.dueDate)}</td>
         <td><span class="pill ps">Pending</span></td>
         <td style="text-align:right"><div class="acts">
-          ${isAdmin()?`${OR.has(o.id)?`<button class="bsm" onclick="S.editLoId='${o.id}';render()">✏</button>`:""}
+          ${isAdmin()?`<button class="bsm" onclick="S.editLoId='${o.id}';render()">✏</button>
           <button class="bgn bsm" onclick="openPaidModal('lo','${o.id}','${o.loanOfficer} — ${o.fileName||""}')">✓ Paid</button>
           <button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button>`:"<span style='color:#aaa;font-size:12px'>View only</span>"}
         </div></td>
       </tr>`;
     }).join("");
-  return`<div class="card">
+  return`${awaitingFinalSection()}<div class="card">
     <div class="sh"><div>
       <div style="font-weight:600">Variable LO Obligations</div>
       <div style="font-size:12px;color:#888;margin-top:2px">All pending obligations including linked revenue file obligations.</div>
@@ -672,7 +710,7 @@ function tabExpenses() {
 }
 
 function tabRevenue() {
-  const activeRev=DATA.rev.filter(r=>!isFunded(r)).sort((a,b)=>a.date.localeCompare(b.date));
+  const activeRev=DATA.rev.filter(r=>!isFunded(r)&&!isPartClosed(r)).sort((a,b)=>a.date.localeCompare(b.date));
   const addForm=isAdmin()&&S.showRevF?`<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
     <div class="frow">
       <div style="flex:2;min-width:140px"><label class="lbl">Source / file name</label><input id="rf_sr" placeholder="File name"/></div>
