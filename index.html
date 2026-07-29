@@ -139,7 +139,7 @@ let ROLE = null; // null = not authenticated, "admin" or "viewer"
 let S = {
   tab:"dashboard", dw:14, fcm:"all", pnlPeriod:"monthly",
   expRev:null, wireModal:null, paidModal:null,
-  showExpF:false, showRevF:false,
+  showExpF:false, showRevF:false, showLoF:false,
   editLoId:null, editExpId:null, editRevId:null,
   editPayId:null, editPayRev:null,
   showCashLog:false, editCash:false,
@@ -626,7 +626,7 @@ function awaitingFinalSection() {
 function tabLO() {
   const pending=DATA.lo.filter(o=>o.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
   const total=pending.reduce((s,o)=>s+Number(o.amount||0),0);
-  const rows=pending.length===0?`<tr><td colspan="7" class="emp">No pending LO obligations.</td></tr>`:
+  const rows=pending.length===0?`<tr><td colspan="7" class="emp">No pending obligations.</td></tr>`:
     pending.map(o=>{
       if(isAdmin()&&S.editLoId===o.id)return`<tr style="background:#f8f9fa">
         <td><input id="el_lo" value="${o.loanOfficer}" style="width:85px"/></td>
@@ -651,12 +651,25 @@ function tabLO() {
         </div></td>
       </tr>`;
     }).join("");
+  const addForm=isAdmin()&&S.showLoF?`<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px">
+    <div class="frow">
+      <div><label class="lbl">Payee / Loan Officer</label><input id="lf_py" placeholder="Name"/></div>
+      <div><label class="lbl">Category</label><select id="lf_ct">${PC.map(c=>`<option value="${c}" ${c==="Other"?"selected":""}>${c}</option>`).join("")}</select></div>
+      <div><label class="lbl">Amount</label><input id="lf_am" type="number" placeholder="0"/></div>
+      <div><label class="lbl">Due date</label><input id="lf_dd" type="date" value="${td()}"/></div>
+    </div>
+    <div class="frow">
+      <div style="flex:2"><label class="lbl">Note / reference (optional)</label><input id="lf_nt" placeholder="e.g. Equipment repair — one-time"/></div>
+    </div>
+    <button class="bgn bsm" onclick="addLo()">+ Add Obligation</button>
+  </div>`:"";
   return`${awaitingFinalSection()}<div class="card">
     <div class="sh"><div>
-      <div style="font-weight:600">Variable LO Obligations</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">All pending obligations including linked revenue file obligations.</div>
-    </div></div>
-    <table><thead><tr><th>Loan Officer</th><th>File Name</th><th>Category</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+      <div style="font-weight:600">Variable Obligations</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">LO payouts, linked revenue-file obligations, and one-time entries.</div>
+    </div>${isAdmin()?`<button class="${S.showLoF?"bsm":"bdk bsm"}" onclick="S.showLoF=!S.showLoF;render()">${S.showLoF?"✕ Cancel":"+ Add Obligation"}</button>`:""}</div>
+    ${addForm}
+    <table><thead><tr><th>Payee</th><th>File / Note</th><th>Category</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
     <tbody>${rows}</tbody>
     ${pending.length?`<tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total outstanding</td><td style="text-align:right">${fmt(total)}</td><td colspan="3"></td></tr></tfoot>`:""}
     </table>
@@ -884,11 +897,11 @@ function tabReport() {
 function tabArchive() {
   const paidLo=DATA.lo.filter(o=>o.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
   const paidExp=DATA.exp.filter(e=>e.status==="paid").sort((a,b)=>(b.paidDate||"").localeCompare(a.paidDate||""));
-  const loRows=paidLo.length===0?`<tr><td colspan="6" class="emp">No paid LO obligations yet.</td></tr>`:paidLo.map(o=>`<tr style="color:#888"><td>${o.loanOfficer}</td><td>${o.fileName||"—"}</td><td style="text-align:right">${fmt(o.amount)}</td><td>${fmtD(o.dueDate)}</td><td>${fmtD(o.paidDate)}</td><td style="text-align:right"><div class="acts">${isAdmin()?`<button class="bsm" onclick="restoreLo('${o.id}')">↺</button><button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button>`:""}</div></td></tr>`).join("");
+  const loRows=paidLo.length===0?`<tr><td colspan="6" class="emp">No paid obligations yet.</td></tr>`:paidLo.map(o=>`<tr style="color:#888"><td>${o.loanOfficer}</td><td>${o.fileName||"—"}</td><td style="text-align:right">${fmt(o.amount)}</td><td>${fmtD(o.dueDate)}</td><td>${fmtD(o.paidDate)}</td><td style="text-align:right"><div class="acts">${isAdmin()?`<button class="bsm" onclick="restoreLo('${o.id}')">↺</button><button class="bsm" onclick="delLo('${o.id}')" style="color:#dc2626">✕</button>`:""}</div></td></tr>`).join("");
   const expRows=paidExp.length===0?`<tr><td colspan="6" class="emp">No paid expenses yet.</td></tr>`:paidExp.map(e=>`<tr style="color:#888"><td>${e.name}</td><td>${e.category}</td><td style="text-align:right">${fmt(e.amount)}</td><td>${fmtD(e.dueDate)}</td><td>${fmtD(e.paidDate)}</td><td style="text-align:right"><div class="acts">${isAdmin()?`${(e.cadence==="weekly"||e.cadence==="monthly")?`<button class="bsm" onclick="genNext('${e.id}')">↻ Gen Next</button>`:""}<button class="bsm" onclick="restoreExp('${e.id}')">↺</button><button class="bsm" onclick="delExp('${e.id}')" style="color:#dc2626">✕</button>`:""}</div></td></tr>`).join("");
   return`
-  <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid LO Obligations</div>
-  <table><thead><tr><th>Loan Officer</th><th>File Name</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${loRows}</tbody></table></div>
+  <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid Obligations</div>
+  <table><thead><tr><th>Payee</th><th>File / Note</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${loRows}</tbody></table></div>
   <div class="card"><div style="font-weight:600;margin-bottom:10px">🗄 Paid Fixed Expenses</div>
   <table><thead><tr><th>Name</th><th>Category</th><th style="text-align:right">Amount</th><th>Due Date</th><th>Paid On</th><th style="text-align:right">Actions</th></tr></thead><tbody>${expRows}</tbody></table></div>`;
 }
@@ -922,7 +935,7 @@ function render() {
   const funded=DATA.rev.filter(isFunded);
   const tabs=[
     {id:"dashboard",l:"Dashboard"},{id:"forecast",l:"Forecast"},
-    {id:"pnl",l:"P&L"},{id:"lo",l:"LO Obligations"},
+    {id:"pnl",l:"P&L"},{id:"lo",l:"Variable Obligations"},
     {id:"expenses",l:"Fixed Expenses"},{id:"revenue",l:"Revenue"},
     {id:"funded",l:`Funded Files${funded.length?` <span class="pill pg" style="font-size:10px">${funded.length}</span>`:""}`},
     {id:"report",l:"Payouts Report"},{id:"archive",l:"Archive"},
@@ -953,6 +966,7 @@ function saveCash(){if(!isAdmin())return;const v=parseFloat(document.getElementB
 function openPaidModal(type,id,label){if(!isAdmin())return;S.paidModal={type,id,label};render();}
 function confirmPaid(){if(!S.paidModal)return;const dt=document.getElementById("pm_dt")?.value||td();const{type,id}=S.paidModal;if(type==="lo"){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:dt}:o);}else if(type==="exp"){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:dt}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});}}S.paidModal=null;saveToFirebase();render();}
 function saveEditLo(id){if(!isAdmin())return;const lo=document.getElementById("el_lo")?.value?.trim();const fn=document.getElementById("el_fn")?.value?.trim();const am=parseFloat(document.getElementById("el_am")?.value);const dd=document.getElementById("el_dd")?.value;if(!lo||!am||!dd)return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,loanOfficer:lo,fileName:fn,amount:am,dueDate:dd}:o);S.editLoId=null;saveToFirebase();render();}
+function addLo(){if(!isAdmin())return;const py=document.getElementById("lf_py")?.value?.trim();const ct=document.getElementById("lf_ct")?.value;const am=parseFloat(document.getElementById("lf_am")?.value);const dd=document.getElementById("lf_dd")?.value;const nt=document.getElementById("lf_nt")?.value?.trim()||"";if(!py||!am||!dd)return;DATA.lo.push({id:gid(),loanOfficer:py,payee:py,fileName:nt,amount:am,dueDate:dd,status:"pending",paidDate:null,category:ct,linkedRevId:null,linkedPayoutId:null});S.showLoF=false;saveToFirebase();render();}
 function saveEditExp(id){if(!isAdmin())return;const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;saveToFirebase();render();}
 function saveEditRev(id){if(!isAdmin())return;const sr=document.getElementById("er_sr")?.value?.trim();const am=parseFloat(document.getElementById("er_am")?.value);const dt=document.getElementById("er_dt")?.value;const tp=document.getElementById("er_tp")?.value;if(!sr||!am||!dt)return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,source:sr,amount:am,date:dt,type:tp}:r);S.editRevId=null;saveToFirebase();render();}
 function saveEditPay(revId,pid){if(!isAdmin())return;const py=document.getElementById("ep_py")?.value?.trim();const ct=document.getElementById("ep_ct")?.value;const am=parseFloat(document.getElementById("ep_am")?.value);const dd=document.getElementById("ep_dd")?.value;if(!py||!am)return;const rr=DATA.rev.find(r=>r.id===revId);const payout=(rr?.payouts||[]).find(p=>p.id===pid);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,payee:py,category:ct,amount:am,dueDate:dd||p.dueDate}:p)}:r);if(payout?.linkedLoId&&dd){DATA.lo=DATA.lo.map(o=>o.id===payout.linkedLoId?{...o,loanOfficer:py,fileName:rr?.source||o.fileName,amount:am,dueDate:dd}:o);}S.editPayId=null;S.editPayRev=null;saveToFirebase();render();}
@@ -960,7 +974,7 @@ function addExp(){if(!isAdmin())return;const nm=document.getElementById("ef_nm")
 function addRev(){if(!isAdmin())return;const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;saveToFirebase();render();}
 function addPay(revId){if(!isAdmin())return;const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo);}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);saveToFirebase();render();}
 function restoreLo(id){if(!isAdmin())return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);saveToFirebase();render();}
-function delLo(id){if(!isAdmin())return;if(!confirm("Delete this LO obligation?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);saveToFirebase();render();}
+function delLo(id){if(!isAdmin())return;if(!confirm("Delete this obligation?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);saveToFirebase();render();}
 function restoreExp(id){if(!isAdmin())return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"pending",paidDate:null}:e);saveToFirebase();render();}
 function delExp(id){if(!isAdmin())return;if(!confirm("Delete this expense?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);saveToFirebase();render();}
 function genNext(id){if(!isAdmin())return;const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});saveToFirebase();render();}
