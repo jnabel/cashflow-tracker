@@ -623,6 +623,12 @@ function awaitingFinalSection() {
   </div>`;
 }
 
+function tabAwaiting() {
+  const items=getAwaitingFinal();
+  if(items.length===0)return`<div class="card"><div class="emp" style="padding:48px">No files awaiting final payout right now.</div></div>`;
+  return awaitingFinalSection();
+}
+
 function tabLO() {
   const pending=DATA.lo.filter(o=>o.status==="pending").sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
   const total=pending.reduce((s,o)=>s+Number(o.amount||0),0);
@@ -663,7 +669,7 @@ function tabLO() {
     </div>
     <button class="bgn bsm" onclick="addLo()">+ Add Obligation</button>
   </div>`:"";
-  return`${awaitingFinalSection()}<div class="card">
+  return`<div class="card">
     <div class="sh"><div>
       <div style="font-weight:600">Variable Obligations</div>
       <div style="font-size:12px;color:#888;margin-top:2px">LO payouts, linked revenue-file obligations, and one-time entries.</div>
@@ -933,14 +939,16 @@ function render() {
   const root=document.getElementById("root"); if(!root)return;
   const hasData=DATA.lo.length>0||DATA.rev.length>0||DATA.exp.length>0;
   const funded=DATA.rev.filter(isFunded);
+  const awaitingCount=getAwaitingFinal().length;
   const tabs=[
     {id:"dashboard",l:"Dashboard"},{id:"forecast",l:"Forecast"},
     {id:"pnl",l:"P&L"},{id:"lo",l:"Variable Obligations"},
     {id:"expenses",l:"Fixed Expenses"},{id:"revenue",l:"Revenue"},
+    {id:"awaiting",l:`Awaiting Final${awaitingCount?` <span class="pill po" style="font-size:10px">${awaitingCount}</span>`:""}`},
     {id:"funded",l:`Funded Files${funded.length?` <span class="pill pg" style="font-size:10px">${funded.length}</span>`:""}`},
     {id:"report",l:"Payouts Report"},{id:"archive",l:"Archive"},
   ];
-  const tabRenderers={dashboard:tabDashboard,forecast:tabForecast,pnl:tabPnl,lo:tabLO,expenses:tabExpenses,revenue:tabRevenue,funded:tabFunded,report:tabReport,archive:tabArchive};
+  const tabRenderers={dashboard:tabDashboard,forecast:tabForecast,pnl:tabPnl,lo:tabLO,expenses:tabExpenses,revenue:tabRevenue,awaiting:tabAwaiting,funded:tabFunded,report:tabReport,archive:tabArchive};
   const body=!hasData?`<div class="card" style="text-align:center;padding:48px"><div style="font-size:32px;margin-bottom:12px">📊</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">No data yet</div><div style="font-size:13px;color:#888;margin-bottom:20px">Import a backup to restore your data.</div>${isAdmin()?`<button class="bdk" onclick="doImport()" style="padding:10px 24px;font-size:14px">⬆ Import Backup</button>`:""}</div>`:(tabRenderers[S.tab]?.()||"");
 
   root.innerHTML=`
