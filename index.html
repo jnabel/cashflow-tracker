@@ -289,7 +289,7 @@ const revGross    = r => Number(r.amount||0);
 const payoutsPaid = r => (r.payouts||[]).filter(p=>p.status==="paid").reduce((s,p)=>s+Number(p.amount||0),0);
 const payoutsPend = r => (r.payouts||[]).filter(p=>p.status!=="paid").reduce((s,p)=>s+Number(p.amount||0),0);
 const revNet      = r => revGross(r)-(r.payouts||[]).reduce((s,p)=>s+Number(p.amount||0),0);
-const isFunded    = r => r.wireReceived&&(r.payouts||[]).length>0&&(r.payouts||[]).every(p=>p.status==="paid");
+const isFunded    = r => r.wireReceived&&((r.payouts||[]).length>0&&(r.payouts||[]).every(p=>p.status==="paid")||((r.payouts||[]).length===0&&r.fullyRetained));
 const isPartClosed = r => r.wireReceived&&(r.payouts||[]).length>0&&(r.payouts||[]).filter(p=>p.status!=="paid").length===1;
 
 function syncLinkedLo(payout, status, paidDate) {
@@ -770,7 +770,7 @@ function tabRevenue() {
         </div></td>
       </tr>`;
       if(!isEx)return[mainRow];
-      const payRows=pays.length===0?`<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet.</div>`:
+      const payRows=pays.length===0?`<div style="font-size:13px;color:#aaa;margin-bottom:8px">No payouts yet.</div>${r.wireReceived&&isAdmin()?`<div style="margin-bottom:8px"><button class="bgn bsm" onclick="markFullyRetained('${r.id}')">💰 Mark Fully Retained</button><div style="font-size:11px;color:#888;margin-top:4px">Use this if AHC keeps 100% of this file — no payouts owed to anyone. Moves the file straight to Funded Files.</div></div>`:""}`:
         `<table style="margin-bottom:8px"><thead><tr><th>Payee</th><th>Category</th><th style="text-align:right">Amount</th><th>Send by</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>`+
         pays.map(p=>{
           if(isAdmin()&&S.editPayId===p.id&&S.editPayRev===r.id)return`<tr style="background:#fff">
@@ -838,13 +838,16 @@ function tabFunded() {
   if(funded.length===0)return`<div class="card"><div class="emp" style="padding:48px">No fully funded files yet.</div></div>`;
   const items=funded.map(r=>{
     const tot=(r.payouts||[]).reduce((s,p)=>s+Number(p.amount||0),0),net=revGross(r)-tot;
+    const payoutsBlock=(r.payouts||[]).length===0
+      ?`<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:5px"><span style="color:#059669">💰 Fully retained — no payouts owed</span>${isAdmin()?`<button class="bsm" onclick="unmarkFullyRetained('${r.id}')">↩ Undo</button>`:""}</div>`
+      :(r.payouts||[]).map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><div style="display:flex;gap:6px;align-items:center">${p.payee} ${catBadge(p.category)}</div><div style="display:flex;gap:8px;align-items:center"><span style="color:#dc2626">−${fmt(p.amount)}</span><span class="pill pg">✓ Sent ${fmtD(p.paidDate)}</span></div></div>`).join("");
     return`<div class="fcd">
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
         <div><div style="font-weight:600;font-size:15px">${r.source}</div><div style="font-size:12px;color:#059669;margin-top:2px">💲 Wire received ${fmtD(r.receivedDate)}</div></div>
         <div style="text-align:right"><div style="font-size:11px;color:#888">Gross</div><div style="font-weight:600">${fmt(revGross(r))}</div></div>
       </div>
       <div style="border-top:1px solid #a7f3d0;padding-top:10px">
-        ${(r.payouts||[]).map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><div style="display:flex;gap:6px;align-items:center">${p.payee} ${catBadge(p.category)}</div><div style="display:flex;gap:8px;align-items:center"><span style="color:#dc2626">−${fmt(p.amount)}</span><span class="pill pg">✓ Sent ${fmtD(p.paidDate)}</span></div></div>`).join("")}
+        ${payoutsBlock}
         <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #a7f3d0;font-weight:600"><span>Net retained</span><span style="color:#059669">${fmt(net)}</span></div>
       </div>
     </div>`;
@@ -992,6 +995,8 @@ function markPayPaid(revId,pid){if(!isAdmin())return;DATA.rev=DATA.rev.map(r=>r.
 function restorePay(revId,pid){if(!isAdmin())return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"pending",paidDate:null}:p)}:r);const payout=(DATA.rev.find(r=>r.id===revId)?.payouts||[]).find(p=>p.id===pid);syncLinkedLo(payout,"pending");saveToFirebase();render();}
 function delPay(revId,pid){if(!isAdmin())return;if(!confirm("Delete this payout?"))return;const payout=(DATA.rev.find(r=>r.id===revId)?.payouts||[]).find(p=>p.id===pid);removeLinkedLo(payout);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).filter(p=>p.id!==pid)}:r);saveToFirebase();render();}
 function openWire(revId){if(!isAdmin())return;const r=DATA.rev.find(r=>r.id===revId);S.wireModal={revId,amount:String(r.amount),receivedDate:td()};render();}
+function markFullyRetained(revId){if(!isAdmin())return;const r=DATA.rev.find(r=>r.id===revId);if(!r||!r.wireReceived||(r.payouts||[]).length>0)return;if(!confirm(`Mark "${r.source}" as fully retained? This moves it to Funded Files with no payouts owed.`))return;DATA.rev=DATA.rev.map(x=>x.id===revId?{...x,fullyRetained:true}:x);saveToFirebase();render();}
+function unmarkFullyRetained(revId){if(!isAdmin())return;DATA.rev=DATA.rev.map(x=>x.id===revId?{...x,fullyRetained:false}:x);saveToFirebase();render();}
 function undoWire(revId){if(!isAdmin())return;if(!confirm("Undo wire received?"))return;const r=DATA.rev.find(r=>r.id===revId);if(!r)return;const prev=DATA.cash;DATA.cash=Math.max(0,DATA.cash-revGross(r));DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev,next:DATA.cash,note:`Wire reversed: ${r.source}`},...DATA.cashLog];DATA.rev=DATA.rev.map(x=>x.id===revId?{...x,wireReceived:false,receivedDate:null,type:"confirmed"}:x);saveToFirebase();render();}
 function confirmWire(revId){if(!isAdmin())return;const am=parseFloat(document.getElementById("wm_am")?.value);const dt=document.getElementById("wm_dt")?.value;if(isNaN(am))return;const src=DATA.rev.find(r=>r.id===revId)?.source||"";DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,type:"confirmed",wireReceived:true,receivedDate:dt,amount:am}:r);const nxt=DATA.cash+am;DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:nxt,note:`Wire received: ${src}`},...DATA.cashLog];DATA.cash=nxt;S.wireModal=null;saveToFirebase();render();}
 
