@@ -608,7 +608,21 @@ function awaitingFinalSection() {
   let rows="";
   Object.entries(byPayee).forEach(([payee,list])=>{
     const subtotal=list.reduce((s,i)=>s+Number(i.amount||0),0);
-    list.forEach(i=>{rows+=`<tr><td style="font-weight:500">${payee}</td><td style="color:#888">${i.file}</td><td>${catBadge(i.category)}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td><td><span class="pill po">Partially Closed</span></td><td style="text-align:right">${isAdmin()?`<button class="bgn bsm" onclick="markPayPaid('${i.revId}','${i.payoutId}')">✓ Paid</button>`:""}</td></tr>`;});
+    list.forEach(i=>{
+      if(isAdmin()&&S.editPayId===i.payoutId&&S.editPayRev===i.revId){
+        rows+=`<tr style="background:#f8f9fa">
+          <td><input id="ep_py" value="${payee}" style="width:100px"/></td>
+          <td style="color:#888">${i.file}</td>
+          <td><select id="ep_ct">${PC.map(c=>`<option value="${c}" ${i.category===c?"selected":""}>${c}</option>`).join("")}</select></td>
+          <td><input id="ep_am" type="number" value="${i.amount}" style="width:90px;text-align:right"/></td>
+          <td><input id="ep_dd" type="date" value="${i.dueDate||""}" style="width:130px"/></td>
+          <td></td>
+          <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditPay('${i.revId}','${i.payoutId}')">✓</button><button class="bsm" onclick="S.editPayId=null;S.editPayRev=null;render()">✕</button></div></td>
+        </tr>`;
+      } else {
+        rows+=`<tr><td style="font-weight:500">${payee}</td><td style="color:#888">${i.file}</td><td>${catBadge(i.category)}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td><td><span class="pill po">Partially Closed</span></td><td style="text-align:right"><div class="acts">${isAdmin()?`<button class="bsm" onclick="S.editPayId='${i.payoutId}';S.editPayRev='${i.revId}';render()">✏</button><button class="bgn bsm" onclick="markPayPaid('${i.revId}','${i.payoutId}')">✓ Paid</button>`:""}</div></td></tr>`;
+      }
+    });
     rows+=`<tr style="background:#f8f9fa"><td colspan="3" style="font-size:12px;color:#888">Subtotal — ${payee}</td><td style="text-align:right;font-weight:600">${fmt(subtotal)}</td><td colspan="3"></td></tr>`;
   });
   return`<div class="card">
