@@ -159,11 +159,38 @@ function tryPin() {
   if(role) {
     ROLE = role;
     try { sessionStorage.setItem("cft-role", role); } catch(_) {}
+    renderConnectingScreen();
     initFirebase();
   } else {
     S.pinError = true;
     renderPinScreen();
   }
+}
+
+function renderConnectingScreen() {
+  const root = document.getElementById("root"); if(!root) return;
+  root.innerHTML = `
+  <div class="pin-screen">
+    <div style="font-size:32px;margin-bottom:12px">⏳</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:8px">Connecting…</div>
+    <div style="font-size:13px;color:#888">Syncing with the database. This should only take a few seconds.</div>
+  </div>`;
+}
+
+function renderConnectionError(detail) {
+  const root = document.getElementById("root"); if(!root) return;
+  root.innerHTML = `
+  <div class="pin-screen">
+    <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:8px">Couldn't connect</div>
+    <div style="font-size:13px;color:#888;margin-bottom:20px">
+      We weren't able to reach the database after several seconds. This is usually a network issue —
+      check your internet connection, try disabling any ad blocker or VPN, or try a different network, then retry.
+      ${detail?`<div style="margin-top:10px;font-size:11px;color:#bbb">Details: ${detail}</div>`:""}
+    </div>
+    <button class="bdk" onclick="renderConnectingScreen();initFirebase()" style="width:100%;padding:10px;font-size:14px;margin-bottom:8px">↻ Retry</button>
+    <button class="bsm" onclick="signOut()" style="width:100%;padding:10px;font-size:14px">← Back to PIN screen</button>
+  </div>`;
 }
 
 function renderPinScreen() {
@@ -222,7 +249,10 @@ function silentExport() {
 
 function initFirebase() {
   setSyncStatus("connecting","Connecting...");
+  let settled=false;
+  const connTimeout=setTimeout(()=>{ if(!settled) renderConnectionError("Connection timed out after 10s."); }, 10000);
   DATA_REF.once("value").then(snap=>{
+    settled=true; clearTimeout(connTimeout);
     if(snap.exists()) {
       const d=snap.val();
       DATA={lo:d.lo||[],exp:d.exp||[],rev:d.rev||[],cash:d.cash||0,cashLog:d.cashLog||[]};
@@ -243,9 +273,9 @@ function initFirebase() {
     setSyncStatus("live","Live · synced");
     render();
   }).catch(e=>{
-    setSyncStatus("error","Firebase error");
+    settled=true; clearTimeout(connTimeout);
     console.error(e);
-    render();
+    renderConnectionError(e?.message||"Unknown error");
   });
 }
 
@@ -299,6 +329,10 @@ function syncLinkedLo(payout, status, paidDate) {
 function removeLinkedLo(payout) {
   if(!payout?.linkedLoId) return;
   DATA.lo=DATA.lo.filter(o=>o.id!==payout.linkedLoId);
+}
+function syncLinkedPayout(loObligation, status, paidDate) {
+  if(!loObligation?.linkedRevId||!loObligation?.linkedPayoutId) return;
+  DATA.rev=DATA.rev.map(r=>r.id===loObligation.linkedRevId?{...r,payouts:(r.payouts||[]).map(p=>p.id===loObligation.linkedPayoutId?{...p,status,paidDate:status==="paid"?(paidDate||td()):null}:p)}:r);
 }
 
 function calcNet() {
@@ -989,7 +1023,7 @@ function render() {
 function signOut(){try{sessionStorage.removeItem("cft-role");}catch(_){}ROLE=null;fbListening=false;try{DATA_REF.off();}catch(_){}S.pinError=false;renderPinScreen();}
 function saveCash(){if(!isAdmin())return;const v=parseFloat(document.getElementById("ci")?.value);if(isNaN(v))return;const note=document.getElementById("cn")?.value?.trim()||"";DATA.cashLog=[{id:gid(),date:new Date().toISOString(),prev:DATA.cash,next:v,note},...DATA.cashLog];DATA.cash=v;S.editCash=false;saveToFirebase();render();}
 function openPaidModal(type,id,label){if(!isAdmin())return;S.paidModal={type,id,label};render();}
-function confirmPaid(){if(!S.paidModal)return;const dt=document.getElementById("pm_dt")?.value||td();const{type,id}=S.paidModal;if(type==="lo"){DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:dt}:o);}else if(type==="exp"){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:dt}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});}}S.paidModal=null;saveToFirebase();render();}
+function confirmPaid(){if(!S.paidModal)return;const dt=document.getElementById("pm_dt")?.value||td();const{type,id}=S.paidModal;if(type==="lo"){const loEntry=DATA.lo.find(o=>o.id===id);DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"paid",paidDate:dt}:o);syncLinkedPayout(loEntry,"paid",dt);}else if(type==="exp"){const t=DATA.exp.find(e=>e.id===id);DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"paid",paidDate:dt}:e);if(t?.cadence){const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});}}S.paidModal=null;saveToFirebase();render();}
 function saveEditLo(id){if(!isAdmin())return;const lo=document.getElementById("el_lo")?.value?.trim();const fn=document.getElementById("el_fn")?.value?.trim();const am=parseFloat(document.getElementById("el_am")?.value);const dd=document.getElementById("el_dd")?.value;if(!lo||!am||!dd)return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,loanOfficer:lo,fileName:fn,amount:am,dueDate:dd}:o);S.editLoId=null;saveToFirebase();render();}
 function addLo(){if(!isAdmin())return;const py=document.getElementById("lf_py")?.value?.trim();const ct=document.getElementById("lf_ct")?.value;const am=parseFloat(document.getElementById("lf_am")?.value);const dd=document.getElementById("lf_dd")?.value;const nt=document.getElementById("lf_nt")?.value?.trim()||"";if(!py||!am||!dd)return;DATA.lo.push({id:gid(),loanOfficer:py,payee:py,fileName:nt,amount:am,dueDate:dd,status:"pending",paidDate:null,category:ct,linkedRevId:null,linkedPayoutId:null});S.showLoF=false;saveToFirebase();render();}
 function saveEditExp(id){if(!isAdmin())return;const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;saveToFirebase();render();}
@@ -998,7 +1032,7 @@ function saveEditPay(revId,pid){if(!isAdmin())return;const py=document.getElemen
 function addExp(){if(!isAdmin())return;const nm=document.getElementById("ef_nm")?.value?.trim();const ct=document.getElementById("ef_ct")?.value;const cd=document.getElementById("ef_cd")?.value;const am=parseFloat(document.getElementById("ef_am")?.value);const dd=document.getElementById("ef_dd")?.value;if(!nm||!am||!dd)return;DATA.exp.push({id:gid(),name:nm,category:ct,amount:am,dueDate:dd,cadence:cd,status:"pending",paidDate:null});S.showExpF=false;saveToFirebase();render();}
 function addRev(){if(!isAdmin())return;const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;saveToFirebase();render();}
 function addPay(revId){if(!isAdmin())return;const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo);}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);saveToFirebase();render();}
-function restoreLo(id){if(!isAdmin())return;DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);saveToFirebase();render();}
+function restoreLo(id){if(!isAdmin())return;const loEntry=DATA.lo.find(o=>o.id===id);DATA.lo=DATA.lo.map(o=>o.id===id?{...o,status:"pending",paidDate:null}:o);syncLinkedPayout(loEntry,"pending",null);saveToFirebase();render();}
 function delLo(id){if(!isAdmin())return;if(!confirm("Delete this obligation?"))return;DATA.lo=DATA.lo.filter(o=>o.id!==id);saveToFirebase();render();}
 function restoreExp(id){if(!isAdmin())return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,status:"pending",paidDate:null}:e);saveToFirebase();render();}
 function delExp(id){if(!isAdmin())return;if(!confirm("Delete this expense?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);saveToFirebase();render();}
