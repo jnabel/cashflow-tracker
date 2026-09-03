@@ -627,7 +627,7 @@ function getAwaitingFinal() {
     const pending=(r.payouts||[]).filter(p=>p.status!=="paid");
     if(pending.length===1){
       const p=pending[0];
-      items.push({revId:r.id,payoutId:p.id,payee:p.payee,file:r.source,amount:p.amount,dueDate:p.dueDate,category:p.category});
+      items.push({revId:r.id,payoutId:p.id,payee:p.payee,file:r.source,amount:p.amount,dueDate:p.dueDate,category:p.category,fundedDate:r.receivedDate});
     }
   });
   return items.sort((a,b)=>a.payee.localeCompare(b.payee)||(a.dueDate||"").localeCompare(b.dueDate||""));
@@ -647,6 +647,7 @@ function awaitingFinalSection() {
         rows+=`<tr style="background:#f8f9fa">
           <td><input id="ep_py" value="${payee}" style="width:100px"/></td>
           <td style="color:#888">${i.file}</td>
+          <td style="color:#888">${fmtD(i.fundedDate)}</td>
           <td><select id="ep_ct">${PC.map(c=>`<option value="${c}" ${i.category===c?"selected":""}>${c}</option>`).join("")}</select></td>
           <td><input id="ep_am" type="number" value="${i.amount}" style="width:90px;text-align:right"/></td>
           <td><input id="ep_dd" type="date" value="${i.dueDate||""}" style="width:130px"/></td>
@@ -654,19 +655,19 @@ function awaitingFinalSection() {
           <td style="text-align:right"><div class="acts"><button class="bgn bsm" onclick="saveEditPay('${i.revId}','${i.payoutId}')">✓</button><button class="bsm" onclick="S.editPayId=null;S.editPayRev=null;render()">✕</button></div></td>
         </tr>`;
       } else {
-        rows+=`<tr><td style="font-weight:500">${payee}</td><td style="color:#888">${i.file}</td><td>${catBadge(i.category)}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td><td><span class="pill po">Partially Closed</span></td><td style="text-align:right"><div class="acts">${isAdmin()?`<button class="bsm" onclick="S.editPayId='${i.payoutId}';S.editPayRev='${i.revId}';render()">✏</button><button class="bgn bsm" onclick="markPayPaid('${i.revId}','${i.payoutId}')">✓ Paid</button>`:""}</div></td></tr>`;
+        rows+=`<tr><td style="font-weight:500">${payee}</td><td style="color:#888">${i.file}</td><td style="color:#888">${fmtD(i.fundedDate)}</td><td>${catBadge(i.category)}</td><td style="text-align:right">${fmt(i.amount)}</td><td>${dueChip(i.dueDate)}</td><td><span class="pill po">Partially Closed</span></td><td style="text-align:right"><div class="acts">${isAdmin()?`<button class="bsm" onclick="S.editPayId='${i.payoutId}';S.editPayRev='${i.revId}';render()">✏</button><button class="bgn bsm" onclick="markPayPaid('${i.revId}','${i.payoutId}')">✓ Paid</button>`:""}</div></td></tr>`;
       }
     });
-    rows+=`<tr style="background:#f8f9fa"><td colspan="3" style="font-size:12px;color:#888">Subtotal — ${payee}</td><td style="text-align:right;font-weight:600">${fmt(subtotal)}</td><td colspan="3"></td></tr>`;
+    rows+=`<tr style="background:#f8f9fa"><td colspan="4" style="font-size:12px;color:#888">Subtotal — ${payee}</td><td style="text-align:right;font-weight:600">${fmt(subtotal)}</td><td colspan="3"></td></tr>`;
   });
   return`<div class="card">
     <div class="sh"><div>
       <div style="font-weight:600">Awaiting Final Payout <span style="font-size:12px;font-weight:400;color:#888">(Partially Closed)</span></div>
       <div style="font-size:12px;color:#888;margin-top:2px">Funded files with exactly one payout still outstanding. Mark paid here once settled — the file moves to Funded Files automatically.</div>
     </div></div>
-    <table><thead><tr><th>Payee</th><th>File</th><th>Category</th><th style="text-align:right">Amount</th><th>Due</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+    <table><thead><tr><th>Payee</th><th>File</th><th>Funded</th><th>Category</th><th style="text-align:right">Amount</th><th>Due</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="3" style="color:#888;font-size:12px">Total outstanding (all payees)</td><td style="text-align:right">${fmt(grandTotal)}</td><td colspan="3"></td></tr></tfoot>
+    <tfoot><tr><td colspan="4" style="color:#888;font-size:12px">Total outstanding (all payees)</td><td style="text-align:right">${fmt(grandTotal)}</td><td colspan="3"></td></tr></tfoot>
     </table>
   </div>`;
 }
