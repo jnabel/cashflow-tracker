@@ -119,6 +119,7 @@ const fmtS = s => { if(!s)return""; const d=new Date(s+"T00:00:00"); return isNa
 const td   = () => new Date().toISOString().slice(0,10);
 const du   = s => { if(!s)return 9999; const t=new Date(); t.setHours(0,0,0,0); return Math.round((new Date(s+"T00:00:00")-t)/86400000); };
 const ai   = (d,c) => { const x=new Date(d+"T00:00:00"); c==="weekly"?x.setDate(x.getDate()+7):x.setMonth(x.getMonth()+1); return x.toISOString().slice(0,10); };
+const esc  = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const gid  = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 // ─── Badge helpers ────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ let ROLE = null; // null = not authenticated, "admin" or "viewer"
 let S = {
   tab:"dashboard", dw:14, fcm:"all", pnlPeriod:"monthly",
   expRev:null, wireModal:null, paidModal:null,
-  showExpF:false, showRevF:false, showLoF:false,
+  showExpF:false, showRevF:false, showLoF:false, cancelModal:null,
   editLoId:null, editExpId:null, editRevId:null,
   editPayId:null, editPayRev:null,
   showCashLog:false, editCash:false,
@@ -147,7 +148,7 @@ let S = {
   syncStatus:"connecting", syncMsg:"Connecting...", lastSaved:null,
   pinError:false
 };
-let DATA = { lo:[], exp:[], rev:[], cash:0, cashLog:[] };
+let DATA = { lo:[], exp:[], rev:[], cash:0, cashLog:[], canc:[] };
 let fbListening = false;
 let autoExportTimer = null;
 let saveTimer = null;
@@ -241,7 +242,7 @@ function triggerAutoExport() {
 
 function silentExport() {
   try {
-    const uri="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify({lo:DATA.lo,exp:DATA.exp,rev:DATA.rev,cash:DATA.cash,cashLog:DATA.cashLog,exportedAt:new Date().toISOString()},null,2));
+    const uri="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify({lo:DATA.lo,exp:DATA.exp,rev:DATA.rev,cash:DATA.cash,cashLog:DATA.cashLog,canc:DATA.canc||[],exportedAt:new Date().toISOString()},null,2));
     const a=document.createElement("a"); a.href=uri; a.download="cashflow-autosave.json";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   } catch(_) {}
@@ -255,9 +256,9 @@ function initFirebase() {
     settled=true; clearTimeout(connTimeout);
     if(snap.exists()) {
       const d=snap.val();
-      DATA={lo:d.lo||[],exp:d.exp||[],rev:d.rev||[],cash:d.cash||0,cashLog:d.cashLog||[]};
+      DATA={lo:d.lo||[],exp:d.exp||[],rev:d.rev||[],cash:d.cash||0,cashLog:d.cashLog||[],canc:d.canc||[]};
     } else {
-      DATA={lo:[],exp:[],rev:[],cash:0,cashLog:[]};
+      DATA={lo:[],exp:[],rev:[],cash:0,cashLog:[],canc:[]};
       if(ROLE==="admin") DATA_REF.set(JSON.parse(JSON.stringify(DATA)));
     }
     if(!fbListening) {
@@ -265,7 +266,7 @@ function initFirebase() {
       DATA_REF.on("value", snap=>{
         if(snap.exists()) {
           const d=snap.val();
-          DATA={lo:d.lo||[],exp:d.exp||[],rev:d.rev||[],cash:d.cash||0,cashLog:d.cashLog||[]};
+          DATA={lo:d.lo||[],exp:d.exp||[],rev:d.rev||[],cash:d.cash||0,cashLog:d.cashLog||[],canc:d.canc||[]};
           render();
         }
       });
@@ -293,11 +294,12 @@ function applyJSON(d) {
   if(rev.length) DATA.rev=rev;
   DATA.cash=d.cash??d.cashOnHand??0;
   DATA.cashLog=d.cashLog||[];
+  if(d.canc) DATA.canc=d.canc;
   saveToFirebase(); render();
 }
 
 function doExport() {
-  const uri="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify({lo:DATA.lo,exp:DATA.exp,rev:DATA.rev,cash:DATA.cash,cashLog:DATA.cashLog,exportedAt:new Date().toISOString()},null,2));
+  const uri="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify({lo:DATA.lo,exp:DATA.exp,rev:DATA.rev,cash:DATA.cash,cashLog:DATA.cashLog,canc:DATA.canc||[],exportedAt:new Date().toISOString()},null,2));
   const a=document.createElement("a"); a.href=uri; a.download="cashflow-backup-"+td()+".json";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
@@ -646,7 +648,7 @@ function awaitingFinalSection() {
       if(isAdmin()&&S.editPayId===i.payoutId&&S.editPayRev===i.revId){
         rows+=`<tr style="background:#f8f9fa">
           <td><input id="ep_py" value="${payee}" style="width:100px"/></td>
-          <td style="color:#888">${i.file}</td>
+          <td><input id="ep_fn" value="${esc(i.file)}" style="width:110px"/></td>
           <td style="color:#888">${fmtD(i.fundedDate)}</td>
           <td><select id="ep_ct">${PC.map(c=>`<option value="${c}" ${i.category===c?"selected":""}>${c}</option>`).join("")}</select></td>
           <td><input id="ep_am" type="number" value="${i.amount}" style="width:90px;text-align:right"/></td>
@@ -815,7 +817,7 @@ function tabRevenue() {
         <td style="color:#888">${fmtD(r.date)}</td>
         <td>${badge}</td>
         <td style="text-align:right"><div class="acts">
-          ${isAdmin()?`${!r.wireReceived?`<button class="bsm" onclick="S.editRevId='${r.id}';render()">✏</button><button class="bsm" onclick="toggleRevType('${r.id}')">${r.type==="expected"?"→ Confirm":"→ Unconfirm"}</button>`:""}<button class="bsm" onclick="delRev('${r.id}')" style="color:#dc2626">✕</button>`:""}
+          ${isAdmin()?`${!r.wireReceived?`<button class="bsm" onclick="S.editRevId='${r.id}';render()">✏</button><button class="bsm" onclick="toggleRevType('${r.id}')">${r.type==="expected"?"→ Confirm":"→ Unconfirm"}</button>`:""}<button class="bsm" onclick="openCancelModal('${r.id}')" style="color:#dc2626">Cancel</button>`:""}
         </div></td>
       </tr>`;
       if(!isEx)return[mainRow];
@@ -986,6 +988,42 @@ function wireModal() {
   </div></div>`;
 }
 
+function cancelModal() {
+  if(!S.cancelModal)return"";
+  const r=DATA.rev.find(x=>x.id===S.cancelModal.revId); if(!r)return"";
+  const nLo=(r.payouts||[]).filter(p=>p.linkedLoId&&DATA.lo.some(o=>o.id===p.linkedLoId&&o.status!=="paid")).length;
+  return`<div class="wov"><div class="wmd">
+    <div style="font-weight:600;font-size:16px;margin-bottom:4px">Cancel revenue file</div>
+    <div style="font-size:13px;color:#888;margin-bottom:14px"><b>${esc(r.source)}</b> · ${fmt(r.amount)}<br>It will move to the Cancelled tab and drop out of all totals.${nLo?`<br>${nLo} linked pending obligation${nLo>1?"s":""} will be removed too (restored if you restore the file).`:""}</div>
+    <div style="margin-bottom:6px"><label class="lbl">Reason for cancelling (required)</label><input type="text" id="cx_rs" placeholder="e.g. Loan did not close"/></div>
+    ${S.cancelModal.err?`<div style="font-size:12px;color:#dc2626;margin-bottom:8px">Please enter a reason.</div>`:""}
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="bdk" onclick="confirmCancelRev()" style="flex:1">Cancel file</button><button onclick="S.cancelModal=null;render()">Keep it</button></div>
+  </div></div>`;
+}
+
+function tabCancelled() {
+  const list=[...(DATA.canc||[])].sort((a,b)=>(b.cancelledDate||"").localeCompare(a.cancelledDate||""));
+  if(list.length===0)return`<div class="card"><div class="emp" style="padding:48px">No cancelled files.</div></div>`;
+  const total=list.reduce((s,r)=>s+Number(r.amount||0),0);
+  const rows=list.map(r=>`<tr>
+    <td style="font-weight:500">${esc(r.source)}</td>
+    <td style="text-align:right">${fmt(r.amount)}</td>
+    <td style="color:#888">${r.type==="confirmed"?"Confirmed":"Expected"}</td>
+    <td style="color:#888">${fmtD(r.date)}</td>
+    <td style="color:#888">${fmtD(r.cancelledDate)}</td>
+    <td>${esc(r.cancelReason)}</td>
+    <td style="text-align:right">${isAdmin()?`<button class="bsm" onclick="restoreCancelled('${r.id}')">↺ Restore</button>`:""}</td>
+  </tr>`).join("");
+  return`<div class="card">
+    <div style="font-weight:600;margin-bottom:4px">Cancelled Files <span style="font-size:13px;font-weight:400;color:#888">(${list.length})</span></div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">Revenue files cancelled with a reason. They are excluded from net position, forecast and P&L.</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>File</th><th style="text-align:right">Amount</th><th>Was</th><th>Original date</th><th>Cancelled</th><th>Reason</th><th style="text-align:right">Actions</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td style="color:#888;font-size:12px">Total cancelled</td><td style="text-align:right">${fmt(total)}</td><td colspan="5"></td></tr></tfoot>
+    </table></div>
+  </div>`;
+}
+
 // ─── Main render ──────────────────────────────────────────────────────────────
 function render() {
   const root=document.getElementById("root"); if(!root)return;
@@ -999,8 +1037,9 @@ function render() {
     {id:"awaiting",l:`Awaiting Final${awaitingCount?` <span class="pill po" style="font-size:10px">${awaitingCount}</span>`:""}`},
     {id:"funded",l:`Funded Files${funded.length?` <span class="pill pg" style="font-size:10px">${funded.length}</span>`:""}`},
     {id:"report",l:"Payouts Report"},{id:"archive",l:"Archive"},
+    {id:"cancelled",l:`Cancelled${(DATA.canc||[]).length?` <span class="pill pr" style="font-size:10px">${DATA.canc.length}</span>`:""}`},
   ];
-  const tabRenderers={dashboard:tabDashboard,forecast:tabForecast,pnl:tabPnl,lo:tabLO,expenses:tabExpenses,revenue:tabRevenue,awaiting:tabAwaiting,funded:tabFunded,report:tabReport,archive:tabArchive};
+  const tabRenderers={dashboard:tabDashboard,forecast:tabForecast,pnl:tabPnl,lo:tabLO,expenses:tabExpenses,revenue:tabRevenue,awaiting:tabAwaiting,funded:tabFunded,report:tabReport,archive:tabArchive,cancelled:tabCancelled};
   const body=!hasData?`<div class="card" style="text-align:center;padding:48px"><div style="font-size:32px;margin-bottom:12px">📊</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">No data yet</div><div style="font-size:13px;color:#888;margin-bottom:20px">Import a backup to restore your data.</div>${isAdmin()?`<button class="bdk" onclick="doImport()" style="padding:10px 24px;font-size:14px">⬆ Import Backup</button>`:""}</div>`:(tabRenderers[S.tab]?.()||"");
 
   root.innerHTML=`
@@ -1017,7 +1056,7 @@ function render() {
     </div>
   </div>
   <div class="tabs">${tabs.map(t=>`<button class="tab${S.tab===t.id?" on":""}" onclick="S.tab='${t.id}';render()">${t.l}</button>`).join("")}</div>
-  ${body}${wireModal()}${paidModal()}`;
+  ${body}${wireModal()}${paidModal()}${cancelModal()}`;
 }
 
 // ─── Action handlers ──────────────────────────────────────────────────────────
@@ -1029,7 +1068,7 @@ function saveEditLo(id){if(!isAdmin())return;const lo=document.getElementById("e
 function addLo(){if(!isAdmin())return;const py=document.getElementById("lf_py")?.value?.trim();const ct=document.getElementById("lf_ct")?.value;const am=parseFloat(document.getElementById("lf_am")?.value);const dd=document.getElementById("lf_dd")?.value;const nt=document.getElementById("lf_nt")?.value?.trim()||"";if(!py||!am||!dd)return;DATA.lo.push({id:gid(),loanOfficer:py,payee:py,fileName:nt,amount:am,dueDate:dd,status:"pending",paidDate:null,category:ct,linkedRevId:null,linkedPayoutId:null});S.showLoF=false;saveToFirebase();render();}
 function saveEditExp(id){if(!isAdmin())return;const nm=document.getElementById("ee_nm")?.value?.trim();const ct=document.getElementById("ee_ct")?.value;const cd=document.getElementById("ee_cd")?.value;const am=parseFloat(document.getElementById("ee_am")?.value);const dd=document.getElementById("ee_dd")?.value;if(!nm||!am||!dd)return;DATA.exp=DATA.exp.map(e=>e.id===id?{...e,name:nm,category:ct,cadence:cd,amount:am,dueDate:dd}:e);S.editExpId=null;saveToFirebase();render();}
 function saveEditRev(id){if(!isAdmin())return;const sr=document.getElementById("er_sr")?.value?.trim();const am=parseFloat(document.getElementById("er_am")?.value);const dt=document.getElementById("er_dt")?.value;const tp=document.getElementById("er_tp")?.value;if(!sr||!am||!dt)return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,source:sr,amount:am,date:dt,type:tp}:r);S.editRevId=null;saveToFirebase();render();}
-function saveEditPay(revId,pid){if(!isAdmin())return;const py=document.getElementById("ep_py")?.value?.trim();const ct=document.getElementById("ep_ct")?.value;const am=parseFloat(document.getElementById("ep_am")?.value);const dd=document.getElementById("ep_dd")?.value;if(!py||!am)return;const rr=DATA.rev.find(r=>r.id===revId);const payout=(rr?.payouts||[]).find(p=>p.id===pid);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,payee:py,category:ct,amount:am,dueDate:dd||p.dueDate}:p)}:r);if(payout?.linkedLoId&&dd){DATA.lo=DATA.lo.map(o=>o.id===payout.linkedLoId?{...o,loanOfficer:py,fileName:rr?.source||o.fileName,amount:am,dueDate:dd}:o);}S.editPayId=null;S.editPayRev=null;saveToFirebase();render();}
+function saveEditPay(revId,pid){if(!isAdmin())return;const py=document.getElementById("ep_py")?.value?.trim();const ct=document.getElementById("ep_ct")?.value;const am=parseFloat(document.getElementById("ep_am")?.value);const dd=document.getElementById("ep_dd")?.value;const fnEl=document.getElementById("ep_fn");const fn=fnEl?fnEl.value.trim():null;if(!py||!am||(fnEl&&!fn))return;const rr=DATA.rev.find(r=>r.id===revId);const payout=(rr?.payouts||[]).find(p=>p.id===pid);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,payee:py,category:ct,amount:am,dueDate:dd||p.dueDate}:p)}:r);if(payout?.linkedLoId&&dd){DATA.lo=DATA.lo.map(o=>o.id===payout.linkedLoId?{...o,loanOfficer:py,fileName:rr?.source||o.fileName,amount:am,dueDate:dd}:o);}if(fn&&rr&&fn!==rr.source){DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,source:fn}:r);DATA.lo=DATA.lo.map(o=>o.linkedRevId===revId?{...o,fileName:fn}:o);}S.editPayId=null;S.editPayRev=null;saveToFirebase();render();}
 function addExp(){if(!isAdmin())return;const nm=document.getElementById("ef_nm")?.value?.trim();const ct=document.getElementById("ef_ct")?.value;const cd=document.getElementById("ef_cd")?.value;const am=parseFloat(document.getElementById("ef_am")?.value);const dd=document.getElementById("ef_dd")?.value;if(!nm||!am||!dd)return;DATA.exp.push({id:gid(),name:nm,category:ct,amount:am,dueDate:dd,cadence:cd,status:"pending",paidDate:null});S.showExpF=false;saveToFirebase();render();}
 function addRev(){if(!isAdmin())return;const sr=document.getElementById("rf_sr")?.value?.trim();const tp=document.getElementById("rf_tp")?.value;const am=parseFloat(document.getElementById("rf_am")?.value);const dt=document.getElementById("rf_dt")?.value;if(!sr||!am||!dt)return;DATA.rev.push({id:gid(),source:sr,amount:am,type:tp,date:dt,wireReceived:false,receivedDate:null,payouts:[]});S.showRevF=false;saveToFirebase();render();}
 function addPay(revId){if(!isAdmin())return;const py=document.getElementById(`ap_py_${revId}`)?.value?.trim();const ct=document.getElementById(`ap_ct_${revId}`)?.value;const am=parseFloat(document.getElementById(`ap_am_${revId}`)?.value);const dd=document.getElementById(`ap_dd_${revId}`)?.value;const clo=document.getElementById(`ap_lo_${revId}`)?.checked;const ll=document.getElementById(`ap_ll_${revId}`)?.value?.trim();const ld=document.getElementById(`ap_ld_${revId}`)?.value;if(!py||!am)return;const r=DATA.rev.find(r=>r.id===revId);const pid=gid();let loId=null;if(clo&&ld){const lo={id:gid(),loanOfficer:ll||py,fileName:r?.source||"",amount:am,dueDate:ld,status:"pending",paidDate:null,linkedRevId:revId,linkedPayoutId:pid,category:ct,payee:ll||py};loId=lo.id;DATA.lo.push(lo);}DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:[...(r.payouts||[]),{id:pid,payee:py,category:ct,amount:am,dueDate:dd||td(),status:"pending",paidDate:null,linkedLoId:loId}]}:r);saveToFirebase();render();}
@@ -1039,7 +1078,9 @@ function restoreExp(id){if(!isAdmin())return;DATA.exp=DATA.exp.map(e=>e.id===id?
 function delExp(id){if(!isAdmin())return;if(!confirm("Delete this expense?"))return;DATA.exp=DATA.exp.filter(e=>e.id!==id);saveToFirebase();render();}
 function genNext(id){if(!isAdmin())return;const t=DATA.exp.find(e=>e.id===id);if(!t?.cadence)return;const n=ai(t.dueDate,t.cadence);if(!DATA.exp.some(e=>e.status==="pending"&&e.name===t.name&&e.dueDate===n))DATA.exp.push({...t,id:gid(),dueDate:n,status:"pending",paidDate:null});saveToFirebase();render();}
 function toggleRevType(id){if(!isAdmin())return;DATA.rev=DATA.rev.map(r=>r.id===id?{...r,type:r.type==="expected"?"confirmed":"expected"}:r);saveToFirebase();render();}
-function delRev(id){if(!isAdmin())return;if(!confirm("Delete this revenue entry?"))return;DATA.rev=DATA.rev.filter(r=>r.id!==id);saveToFirebase();render();}
+function openCancelModal(id){if(!isAdmin())return;const r=DATA.rev.find(x=>x.id===id);if(!r)return;if(r.wireReceived){alert("This file's wire is already marked received, so it is part of your cash on hand. Click ↩ Undo on the wire first (that reverses the cash), then cancel the file.");return;}S.cancelModal={revId:id,err:false};render();}
+function confirmCancelRev(){if(!isAdmin()||!S.cancelModal)return;const reason=document.getElementById("cx_rs")?.value?.trim();if(!reason){S.cancelModal.err=true;render();return;}const r=DATA.rev.find(x=>x.id===S.cancelModal.revId);if(!r){S.cancelModal=null;render();return;}const linkedIds=(r.payouts||[]).map(p=>p.linkedLoId).filter(Boolean);const removedLo=DATA.lo.filter(o=>linkedIds.includes(o.id)&&o.status!=="paid");DATA.lo=DATA.lo.filter(o=>!removedLo.some(x=>x.id===o.id));DATA.canc=[{...r,cancelledDate:td(),cancelReason:reason,removedLo},...(DATA.canc||[])];DATA.rev=DATA.rev.filter(x=>x.id!==r.id);if(S.expRev===r.id)S.expRev=null;S.cancelModal=null;saveToFirebase();render();}
+function restoreCancelled(id){if(!isAdmin())return;const c=(DATA.canc||[]).find(x=>x.id===id);if(!c)return;if(!confirm(`Restore "${c.source}" to the Revenue tab?`))return;const {cancelledDate,cancelReason,removedLo,...rev}=c;DATA.rev.push(rev);(removedLo||[]).forEach(o=>DATA.lo.push(o));DATA.canc=DATA.canc.filter(x=>x.id!==id);saveToFirebase();render();}
 function markPayPaid(revId,pid){if(!isAdmin())return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"paid",paidDate:td()}:p)}:r);const payout=(DATA.rev.find(r=>r.id===revId)?.payouts||[]).find(p=>p.id===pid);syncLinkedLo(payout,"paid");saveToFirebase();render();}
 function restorePay(revId,pid){if(!isAdmin())return;DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).map(p=>p.id===pid?{...p,status:"pending",paidDate:null}:p)}:r);const payout=(DATA.rev.find(r=>r.id===revId)?.payouts||[]).find(p=>p.id===pid);syncLinkedLo(payout,"pending");saveToFirebase();render();}
 function delPay(revId,pid){if(!isAdmin())return;if(!confirm("Delete this payout?"))return;const payout=(DATA.rev.find(r=>r.id===revId)?.payouts||[]).find(p=>p.id===pid);removeLinkedLo(payout);DATA.rev=DATA.rev.map(r=>r.id===revId?{...r,payouts:(r.payouts||[]).filter(p=>p.id!==pid)}:r);saveToFirebase();render();}
